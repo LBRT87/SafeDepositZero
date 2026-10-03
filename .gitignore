@@ -1,0 +1,26 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# contracts
+contracts/out/
+# forge keeps sensitive values (RPC URLs) in cache/
+contracts/cache/
+contracts/test-v2-backup/
+
+# stylus
+stylus/premium-calculator/stylus-key.txt
+stylus/premium-calculator/target/
+
+# frontend
+frontend/node_modules/
+frontend/.next/
+frontend/next-env.d.ts
+*.tsbuildinfo
+
+# local agent tooling
+.claude/
+.agents/
+skills-lock.json
+SKILL.md

@@ -1,0 +1,4 @@
+# Stylus deploys need the wasm32 target:  rustup target add wasm32-unknown-unknown
+[toolchain]
+channel = "stable"
+targets = ["wasm32-unknown-unknown"]

@@ -1,0 +1,34 @@
+[package]
+name = "premium-calculator"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "SafeDeposit Zero premium engine (Arbitrum Stylus)"
+
+[dependencies]
+stylus-sdk = "0.10.9"
+alloy-primitives = { version = "1.5.7", default-features = false }
+alloy-sol-types = { version = "1.5.7", default-features = false }
+
+[dev-dependencies]
+stylus-sdk = { version = "0.10.9", features = ["stylus-test"] }
+
+[features]
+export-abi = ["stylus-sdk/export-abi"]
+debug = ["stylus-sdk/debug"]
+# Checked by the stylus-sdk macros; unused here.
+contract-client-gen = []
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[[bin]]
+name = "premium-calculator"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+strip = true
+lto = true
+panic = "abort"
+opt-level = "s"
