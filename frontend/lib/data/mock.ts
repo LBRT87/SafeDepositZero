@@ -1,8 +1,4 @@
-// MockDataSource — an in-memory copy of the on-chain state machine (SPEC §5–§7), so every screen and flow can be
-// clicked through without a wallet or deployed contracts. Rules mirror the Solidity exactly: tier from rental
-// history, the 75 / 10 / 15 premium split with the first-loss cap, pending claims priced in at once, the 50%
-// reserve and per-landlord concentration checks, the withdrawal queue, lapse rules, the dispute fee on full
-// approval only, pool-first repayments, and defaults covered by the first-loss reserve.
+// In-memory copy of the on-chain rules, so the app works without a wallet.
 
 import { keccak256, stringToHex } from "viem";
 import { ContractError } from "./errors";
@@ -38,7 +34,7 @@ import type {
 } from "./types";
 import { MIN_MONTHLY, quotePremium, splitPremium, UNIT } from "../premium";
 
-// ───────────────────────────── constants ─────────────────────────────
+// Constants
 
 const U = UNIT;
 const BPS = 10_000n;
@@ -46,13 +42,13 @@ const SHARE_UNIT = 10n ** 12n; // sdUSDG has 6 + 6 (virtual offset) decimals
 const OFFSET = 10n ** 6n;
 const TBILL_APR_BPS = 340n;
 const YEAR = 365n * 24n * 3600n;
-/** Simulated yield in the demo profile: 1 real minute = 1 month (43,200 = 30 days × 24 h × 60 min / 1 min). */
+/** Demo yield speed-up: 1 real minute = 1 month. */
 const TIME_MULTIPLIER = 43_200n;
 const TX_WALLET_MS = 900;
 const TX_CONFIRM_MS = 1_300;
 const READ_MS = 220;
 
-/** Same values as TimeProfiles.demo() in contracts/src/libraries/Types.sol. */
+/** Matches TimeProfiles.demo(). */
 export const DEMO_TIME: TimeConfig = {
   premiumPeriod: 60,
   gracePeriod: 60,
@@ -97,7 +93,7 @@ const DEFAULT_PARAMS: Omit<AdminParams, "paused"> = {
   treasury: TREASURY,
 };
 
-/** Same bounds as the contract setters. */
+/** Matches the contract setter bounds. */
 const PARAM_BOUNDS: Record<ParamKey, [bigint, bigint]> = {
   protocolFeeBps: [0n, 4_000n],
   firstLossShareBps: [0n, 10_000n],
@@ -111,7 +107,7 @@ const PARAM_BOUNDS: Record<ParamKey, [bigint, bigint]> = {
   gdnAprBps: [0n, 2_000n],
 };
 
-// ───────────────────────────── state ─────────────────────────────
+// State
 
 type PolicyRec = Omit<Policy, "claimWindowEnd">;
 type ClaimRec = Claim;
@@ -146,7 +142,7 @@ interface State {
   totalShares: bigint; // includes shares escrowed in the queue
   queue: QueueRec[];
   queueHead: number;
-  idle: bigint; // includes the first-loss reserve and money held for pending claims
+  idle: bigint; // incl. first-loss and pending claims
   adapterPrincipal: bigint;
   adapterLastAccrual: number;
   firstLoss: bigint;
@@ -173,7 +169,7 @@ const min = (a: bigint, b: bigint) => (a < b ? a : b);
 const max = (a: bigint, b: bigint) => (a > b ? a : b);
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 
-// ───────────────────────────── data source ─────────────────────────────
+// Data source
 
 export class MockDataSource implements DataSource {
   readonly kind = "mock" as const;
@@ -186,7 +182,7 @@ export class MockDataSource implements DataSource {
     this.reset();
   }
 
-  // ── demo controls (mock only, not part of DataSource) ──
+  // Demo controls (mock only, not part of DataSource)
 
   reset() {
     this.clockOffset = 0;
@@ -194,7 +190,7 @@ export class MockDataSource implements DataSource {
     this.emit();
   }
 
-  /** Moves the mock clock forward, e.g. 60 s = one month in the demo profile. */
+  /** Moves the mock clock forward. */
   skip(seconds: number) {
     this.clockOffset += seconds;
     this.recordSnapshot();
@@ -210,7 +206,7 @@ export class MockDataSource implements DataSource {
     return this.rejectNextTx;
   }
 
-  // ── environment ──
+  // Environment
 
   now(): number {
     return Math.floor(Date.now() / 1000) + this.clockOffset;
@@ -235,7 +231,7 @@ export class MockDataSource implements DataSource {
     this.listeners.forEach((l) => l());
   }
 
-  // ── pool math ──
+  // Pool math
 
   private adapterValue(): bigint {
     const s = this.state;
@@ -244,7 +240,7 @@ export class MockDataSource implements DataSource {
     return s.adapterPrincipal + (s.adapterPrincipal * TBILL_APR_BPS * elapsed * TIME_MULTIPLIER) / (YEAR * BPS);
   }
 
-  /** Crystallizes accrued T-bill interest and logs it as yield. */
+  /** Books accrued T-bill interest. */
   private crystallize(hash: Hash) {
     const s = this.state;
     const value = this.adapterValue();
@@ -258,7 +254,7 @@ export class MockDataSource implements DataSource {
     return this.state.idle + this.adapterValue();
   }
 
-  /** Investor assets: gross − first-loss − pending claims, floored at 0. */
+  /** Investor assets: gross − first-loss − pending claims. */
   private totalAssets(): bigint {
     const held = this.state.firstLoss + this.state.pending;
     const gross = this.grossAssets();
@@ -329,7 +325,7 @@ export class MockDataSource implements DataSource {
     if (s.idle < amount) throw new ContractError("ReserveTooLow", "The pool doesn't have enough cash to pay this right now.");
   }
 
-  /** Keeps `liquidityTargetBps` of investor assets idle, plus first-loss and pending claims. */
+  /** Keeps the liquidity target idle. */
   private doRebalance(hash: Hash) {
     const s = this.state;
     this.crystallize(hash);
@@ -358,7 +354,7 @@ export class MockDataSource implements DataSource {
     this.state.activity.unshift({ id: `${txHash}-${kind}-${this.state.activity.length}`, kind, amount, at: this.now(), txHash, label });
   }
 
-  // ── registry ──
+  // Registry
 
   private record(tenant: Address): RegistryRec {
     const k = key(tenant);
@@ -376,7 +372,7 @@ export class MockDataSource implements DataSource {
     return { ...r, tier, blocked: r.defaulted || r.openDebts > 0 };
   }
 
-  // ── token helpers ──
+  // Token helpers
 
   private balance(a: Address) {
     return this.state.balances.get(key(a)) ?? 0n;
@@ -403,10 +399,10 @@ export class MockDataSource implements DataSource {
     this.credit(owner, -amount);
   }
 
-  // ── tx lifecycle ──
+  // Tx lifecycle
 
   private async tx<T extends object>(opts: TxOptions, validate: () => void, apply: (hash: Hash) => T): Promise<T & TxReceipt> {
-    validate(); // like eth_call simulation: fail before asking the wallet
+    validate(); // fail before the wallet, like simulation
     opts.onStage?.("wallet");
     await sleep(TX_WALLET_MS);
     if (this.rejectNextTx) {
@@ -425,7 +421,7 @@ export class MockDataSource implements DataSource {
     return { ...result, hash };
   }
 
-  // ── reads ──
+  // Reads
 
   private async read<T>(fn: () => T): Promise<T> {
     await sleep(READ_MS);
@@ -471,10 +467,7 @@ export class MockDataSource implements DataSource {
     });
   }
 
-  /**
-   * netAPY = (premiumsToPool + gdnRewards + tbillYield + recoveries + firstLossCovers − claimsPaid)
-   *          / avgAssets × (12 months / period)   (SPEC §5.6)
-   */
+  /** Net APY over the period, annualized. */
   private apy() {
     const s = this.state;
     const now = this.now();
@@ -632,7 +625,7 @@ export class MockDataSource implements DataSource {
     return this.read(() => ({ ...this.state.params, paused: this.state.paused }));
   }
 
-  // ── writes: approvals and policies ──
+  // Writes: approvals and policies
 
   approve(spender: Spender, amount: bigint, opts: TxOptions) {
     return this.tx(
@@ -811,7 +804,7 @@ export class MockDataSource implements DataSource {
     if (clean && !p.lapsedAt && p.tenant) this.record(p.tenant).cleanCompleted += 1;
   }
 
-  // ── writes: claims and debt ──
+  // Writes: claims and debt
 
   fileClaim(input: FileClaimInput, opts: TxOptions) {
     const s = this.state;
@@ -1057,7 +1050,7 @@ export class MockDataSource implements DataSource {
     );
   }
 
-  // ── writes: investors ──
+  // Writes: investors
 
   deposit(amount: bigint, opts: TxOptions) {
     const s = this.state;
@@ -1209,7 +1202,7 @@ export class MockDataSource implements DataSource {
     );
   }
 
-  // ── writes: keeper ──
+  // Writes: keeper
 
   endLease(policyId: number, opts: TxOptions) {
     return this.tx(
@@ -1263,7 +1256,7 @@ export class MockDataSource implements DataSource {
     );
   }
 
-  // ── writes: admin ──
+  // Writes: admin
 
   setParam(paramKey: ParamKey, value: bigint, opts: TxOptions) {
     const s = this.state;
@@ -1308,7 +1301,7 @@ export class MockDataSource implements DataSource {
     );
   }
 
-  // ── internal rule helpers ──
+  // Internal rule helpers
 
   private mustPolicy(id: number): PolicyRec {
     const p = this.state.policies.get(id);
@@ -1334,7 +1327,7 @@ export class MockDataSource implements DataSource {
     if (c.status !== expected) throw new ContractError("InvalidStatus");
   }
 
-  /** A fully paid lease past its end time counts as Ended even before a keeper calls endLease. */
+  /** A fully paid, expired lease counts as Ended. */
   private autoEndStatus(p: PolicyRec): Policy["status"] {
     if (p.status === "Active" && this.now() >= p.endTime && p.periodsPaid >= p.totalPeriods) return "Ended";
     return p.status;
@@ -1357,11 +1350,8 @@ function disputeFee(claimed: bigint, feeBps: number) {
   return fee < minFee ? minFee : fee;
 }
 
-// ───────────────────────────── seed ─────────────────────────────
-// Mirrors contracts/script/Seed.s.sol, laid out relative to "now" so every dashboard has live data:
-// the demo invite for a new renter (tier B), a returning tenant repaying a past claim, an ended lease in its claim
-// window, a disputed claim with the tenant's move-in notes, a clean closed lease, and a defaulted debt that the
-// first-loss reserve covered.
+// Seed
+// Demo data relative to "now".
 
 function buildSeed(T: number): State {
   const time = DEMO_TIME;
@@ -1409,8 +1399,7 @@ function buildSeed(T: number): State {
   s.balances.set(key(PERSONAS.admin.address), 50n * U);
   for (const t of [BUDI, SARI, RIZKY]) s.balances.set(key(t), 500n * U);
 
-  // Pool: 52,340.18 USDG of investor assets at a share price of ~1.0712 after twelve simulated months.
-  // On top of that the pool holds the first-loss reserve and the 300 USDG of Sari's disputed claim.
+  // Pool: ~52,340 USDG after twelve simulated months.
   const investorAssets = 52_340_180_000n;
   s.firstLoss = 1_284_500_000n;
   s.pending = 300n * U;
@@ -1420,7 +1409,7 @@ function buildSeed(T: number): State {
   s.idle = (investorAssets * BigInt(s.params.liquidityTargetBps)) / BPS + s.firstLoss + s.pending;
   s.adapterPrincipal = investorAssets + s.firstLoss + s.pending - s.idle;
 
-  // Twelve simulated months of history (1 month = 60 s back from now).
+  // Twelve months of history.
   const m = time.premiumPeriod;
   const fakeHash = (i: number) => keccak256(stringToHex(`seed-${i}`));
   const prices = [10_000, 10_061, 10_118, 10_176, 10_139, 10_201, 10_262, 10_318, 10_377, 10_350, 10_419, 10_488, 10_712];
@@ -1492,18 +1481,18 @@ function buildSeed(T: number): State {
   });
   const reg = (who: Address, r: Partial<RegistryRec>) => s.registry.set(key(who), { cleanCompleted: 0, claimsPaid: 0, openDebts: 0, defaulted: false, ...r });
 
-  // Open invites. #1 is the demo invite link for a new renter (tier B → $15.00).
+  // Open invites; #1 is the demo invite.
   add({ propertyRef: "Unit 12B, Orchard", coverage: 2_000n * U, monthlyRent: 2_000n * U, totalPeriods: 12, status: "Invited", createdAt: T - 90 });
   add({ propertyRef: "Kos Tebet No. 7", coverage: 800n * U, monthlyRent: 400n * U, totalPeriods: 12, status: "Invited", createdAt: T - 200 });
   add({ propertyRef: "Room 3C, Tiong Bahru", coverage: 1_200n * U, totalPeriods: 6, status: "Invited", createdAt: T - 260 });
 
-  // Ayu's current lease: 5 of 12 months paid, next fee due in 90 s.
+  // Ayu: 5 of 12 months paid.
   add({ propertyRef: "Unit 4D, Orchard Rd", coverage: 2_200n * U, monthlyRent: 2_200n * U, totalPeriods: 12, tier: "B", status: "Active", tenant: AYU, ...active(T - 210, 12, 5), checkInEvidenceHash: ev.kuninganCheckIn.hash, checkInCid: ev.kuninganCheckIn.cid });
 
-  // Ended lease inside its claim window (ended 40 s ago).
+  // Ended lease in its claim window.
   add({ propertyRef: "Unit 9F, Jl. Thamrin", coverage: 1_800n * U, totalPeriods: 6, tier: "A", status: "Ended", tenant: BUDI, ...active(T - 400, 6, 6) });
 
-  // Disputed claim waiting for the arbiter. Sari added move-in notes within the check-in window.
+  // Disputed claim awaiting the arbiter.
   const senopati = add({
     propertyRef: "Unit 2B, Jl. Senopati",
     coverage: 2_000n * U,
@@ -1544,11 +1533,11 @@ function buildSeed(T: number): State {
   });
   senopati.claimId = disputedId;
 
-  // Budi's earlier lease closed with no claim: a clean record, so his next lease is tier A.
+  // Budi: clean record → tier A.
   add({ propertyRef: "Unit 5E, Clementi Ave", coverage: 1_500n * U, totalPeriods: 6, tier: "B", status: "Closed", tenant: BUDI, ...active(T - 900, 6, 6) });
   reg(BUDI, { cleanCompleted: 1 });
 
-  // Ayu's previous lease: the arbiter approved 200 of a 300 claim (no dispute fee on a partial decision); 70 repaid.
+  // Ayu's earlier lease: 200 of 300 approved, 70 repaid.
   const kuningan = add({ propertyRef: "Unit 11C, Kuningan City", coverage: 2_000n * U, totalPeriods: 6, tier: "B", status: "Closed", tenant: AYU, ...active(T - 780, 6, 6), checkInEvidenceHash: ev.kuninganCheckIn.hash, checkInCid: ev.kuninganCheckIn.cid });
   const paidId = s.nextClaimId++;
   s.claims.set(paidId, {
@@ -1597,7 +1586,7 @@ function buildSeed(T: number): State {
   seedLog(1.8, "claim", 200n * U, "Claim paid, Unit 11C, Kuningan City", i++);
   seedLog(0.6, "repayment", 70n * U, "Repayment, Unit 11C, Kuningan City", i++);
 
-  // Rizky lapsed, the landlord claimed 250 + the missed fee, he never repaid: defaulted, covered by first-loss.
+  // Rizky: lapsed, defaulted, covered by first-loss.
   const tebet = add({ propertyRef: "Unit 6A, Jl. Tebet Raya", coverage: 1_000n * U, totalPeriods: 12, tier: "B", status: "Closed", tenant: RIZKY, ...active(T - 600, 12, 3), lapsedAt: T - 350 });
   const defaultId = s.nextClaimId++;
   s.claims.set(defaultId, {
@@ -1646,7 +1635,7 @@ function buildSeed(T: number): State {
   seedLog(2.6, "claim", 250n * U, "Claim paid, Unit 6A, Jl. Tebet Raya", i++);
   seedLog(0.5, "firstLoss", 250n * U + tebetMissed, "First-loss reserve covered a default, Unit 6A, Jl. Tebet Raya", i++);
 
-  // Other landlords' leases backing the pool's active coverage (prepaid, so they don't lapse mid-demo).
+  // Other landlords' prepaid leases.
   const others: [string, bigint, RiskTier][] = [
     ["Studio 14, Tanjong Pagar", 1_800n, "A"],
     ["Unit 6C, Jl. Kebon Jeruk", 2_500n, "B"],
@@ -1675,7 +1664,7 @@ function buildSeed(T: number): State {
   return s;
 }
 
-/** Display names for known demo addresses. */
+/** Demo address names. */
 export const KNOWN_NAMES: Record<string, string> = {
   ...Object.fromEntries(Object.values(PERSONAS).map((p) => [key(p.address), p.name.replace(" (new renter)", "")])),
   [key(BUDI)]: "Budi Santoso",

@@ -16,7 +16,7 @@ import {
     Policy, Claim, Debt, PolicyStatus, ClaimStatus, ClaimType, TimeConfig, TimeProfiles
 } from "../../src/libraries/Types.sol";
 
-/// @notice Deploys the full protocol with the demo time profile. Local only — no fork, no RPC.
+/// @notice Full protocol, demo time profile, local only.
 abstract contract BaseTest is Test {
     uint256 internal constant USDG = 1e6;
     uint128 internal constant COVER = 2_000e6;
@@ -70,7 +70,7 @@ abstract contract BaseTest is Test {
         pool.setYieldAdapter(adapter);
         vm.stopPrank();
 
-        // Seed deposit (inflation-attack mitigation) + simulated T-bill and GDN reward reserves.
+        // Seed deposit + simulated yield reserves.
         _mint(admin, 2_000 * USDG);
         vm.startPrank(admin);
         usdg.approve(address(pool), type(uint256).max);
@@ -87,7 +87,7 @@ abstract contract BaseTest is Test {
         _approveAll(landlord);
     }
 
-    // ───────────────────────────── helpers ─────────────────────────────
+    // helpers
 
     function _mint(address to, uint256 amount) internal {
         while (amount > 0) {
@@ -127,7 +127,7 @@ abstract contract BaseTest is Test {
         id = _activeFor(tenant, coverage, periods);
     }
 
-    /// Active policy with every premium paid and the end time reached, ended by a keeper.
+    /// Fully paid policy, ended.
     function _ended(uint128 coverage, uint32 periods) internal returns (uint256 id) {
         id = _active(coverage, periods);
         _payAll(id);
@@ -136,7 +136,7 @@ abstract contract BaseTest is Test {
         pm.endLease(id);
     }
 
-    /// Active policy whose second premium was missed, marked lapsed by a keeper.
+    /// Policy lapsed after a missed premium.
     function _lapsed(uint128 coverage, uint32 periods) internal returns (uint256 id) {
         id = _active(coverage, periods);
         vm.warp(pm.getPolicy(id).nextPremiumDue + t.gracePeriod + 1);

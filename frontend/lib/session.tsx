@@ -7,17 +7,17 @@ import { dataSource, IS_MOCK } from "./data";
 import type { Address, DemoWallet, Role } from "./data/types";
 
 interface Session {
-  /** Connected wallet (onchain) or the active demo wallet (mock). */
+  /** Connected or demo wallet. */
   account: Address | null;
   wallet: DemoWallet | null;
-  /** Role implied by the current page. */
+  /** Role from the current page. */
   pageRole: Role | null;
-  /** Mock: pick which demo wallet to act as on this page (null = the page's default persona). */
+  /** Mock: active demo wallet (null = page default). */
   setDemoWallet: (address: Address | null) => void;
   wrongNetwork: boolean;
   setWrongNetwork: (v: boolean) => void;
   chainName: string;
-  /** Onchain bridge pushes the wagmi account here. */
+  /** Set by the onchain wallet bridge. */
   setOnchainAccount: (a: Address | null) => void;
 }
 
@@ -32,7 +32,7 @@ export function roleForPath(pathname: string): Role | null {
   return null;
 }
 
-/** Mock: the persona each page opens with. Invite links open as a new renter, so the demo shows tier B. */
+/** Mock: default persona per page. */
 function defaultWallet(pathname: string, wallets: DemoWallet[]): DemoWallet | null {
   const role = roleForPath(pathname);
   if (pathname.startsWith("/invite")) return wallets.find((w) => w.name.includes("new renter")) ?? null;

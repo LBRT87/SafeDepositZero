@@ -1,7 +1,6 @@
 "use client";
 
-// Onchain mode only (loaded lazily): the RainbowKit connect button, styled as the brief's white wallet button,
-// plus the bridge that pushes the connected account and network into the session.
+// Onchain mode only: connect button and session bridge.
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { ChevronDown, Wallet } from "lucide-react";
 import { useEffect } from "react";

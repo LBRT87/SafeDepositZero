@@ -27,7 +27,7 @@ const KIND: Record<ActivityEntry["kind"], { label: string; sign: "+" | "−" | "
   rebalance: { label: "Rebalance", sign: "", tone: "muted" },
 };
 
-/** SPEC §4.4: 1,000 policies × $2,000 coverage, $1M pool. Illustrative, not a forecast. */
+/** Illustrative: 1,000 × $2,000 policies, $1M pool. */
 const SCENARIOS = [
   { name: "Normal year", claims: "−$63,000", result: "+$104,400", pct: "+10.4%", price: "1.000 → 1.104", tone: "green" as const },
   { name: "Bad year", claims: "−$180,000", result: "−$12,600", pct: "−1.3%", price: "1.000 → 0.987", tone: "alert" as const },
@@ -50,7 +50,7 @@ export default function InvestPage() {
         <Banner tone="alert">The pool is below its minimum reserve, so new guarantees are paused until new deposits arrive.</Banner>
       )}
 
-      {/* Summary: one panel split by vertical rules, not cards */}
+      {/* Summary */}
       <section className="rounded-panel border border-line bg-surface">
         <dl className="grid grid-cols-2 divide-line md:grid-cols-4 md:divide-x [&>div]:px-5 [&>div]:py-5 md:[&>div]:px-6">
           <Summary label="Pool assets" value={s && moneyShort(s.totalAssets)} sub={s && `Share price $${s.sharePrice.toFixed(4)}`} />

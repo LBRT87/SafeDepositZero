@@ -3,17 +3,14 @@
 import { clsx } from "clsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-/** Strong ease-out (cubic-bezier(0.23, 1, 0.32, 1) in spirit) for JS-driven tweens. */
+/** Strong ease-out. */
 export const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/**
- * True once the element has scrolled into view (and stays true). Content is visible by default: elements that are
- * already on screen at mount never get hidden, so nothing flashes and nothing disappears if scripts fail.
- */
+/** True once in view. Visible by default, so nothing hides if JS fails. */
 export function useInView<T extends Element>(threshold = 0.25) {
   const ref = useRef<T | null>(null);
   const [state, setState] = useState<"idle" | "waiting" | "in">("idle");
@@ -44,7 +41,7 @@ export function useInView<T extends Element>(threshold = 0.25) {
   return { ref, waiting: state === "waiting", inView: state === "in" };
 }
 
-/** Tweens a number from `from` to `to` when `run` turns true (or whenever `to` changes after that). */
+/** Tweens a number when `run` turns true. */
 export function useTween(to: number, { run = true, from, duration = 900 }: { run?: boolean; from?: number; duration?: number } = {}) {
   const [value, setValue] = useState(from ?? to);
   const current = useRef(from ?? to);
@@ -63,7 +60,7 @@ export function useTween(to: number, { run = true, from, duration = 900 }: { run
       if (k < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
-    // rAF pauses in hidden tabs: make sure the final figure lands even if no frame ever runs.
+    // rAF pauses in hidden tabs; land the final value anyway.
     const done = setTimeout(() => {
       cancelAnimationFrame(raf);
       current.current = to;
@@ -77,20 +74,20 @@ export function useTween(to: number, { run = true, from, duration = 900 }: { run
   return value;
 }
 
-/** A figure that counts up from zero the first time it scrolls into view. */
+/** Counts up once when in view. */
 export function CountUp({ value, format, className }: { value: number; format: (v: number) => string; className?: string }) {
   const { ref, inView } = useInView<HTMLSpanElement>(0.4);
   const v = useTween(value, { run: inView, from: 0, duration: 1100 });
   return (
     <span ref={ref} className={clsx("nums", className)}>
-      {/* Screen readers get the final figure, not the animation. */}
+      {/* Final value for screen readers */}
       <span aria-hidden>{format(inView ? v : 0)}</span>
       <span className="sr-only">{format(value)}</span>
     </span>
   );
 }
 
-/** Fades and lifts a block in once, the first time it scrolls into view. `delay` staggers siblings in a list. */
+/** Fades a block in once; `delay` staggers. */
 export function Reveal({ children, delay = 0, className, as: Tag = "div" }: { children: ReactNode; delay?: number; className?: string; as?: "div" | "li" | "section" }) {
   const { ref, waiting } = useInView<HTMLDivElement>();
   return (

@@ -5,7 +5,7 @@ import {BaseTest} from "../utils/BaseTest.sol";
 import {Policy, Debt, PolicyStatus, ClaimStatus, RiskTier} from "../../src/libraries/Types.sol";
 import "../../src/libraries/Errors.sol";
 
-/// @notice End-to-end flows from SPEC §7.12 and the demo script in SPEC §9.
+/// @notice End-to-end flows and the demo script.
 contract FlowsTest is BaseTest {
     function setUp() public override {
         super.setUp();
@@ -16,7 +16,7 @@ contract FlowsTest is BaseTest {
         return pm.getPolicy(id).status;
     }
 
-    /// Happy path with no claim → clean record → the next lease is priced at tier A.
+    /// No claim → clean record → tier A next time.
     function test_Flow_noClaimThenTierA() public {
         uint256 id = _invite(COVER, 12);
         vm.prank(tenant);
@@ -185,7 +185,7 @@ contract FlowsTest is BaseTest {
         vm.prank(investor2);
         uint256 req2 = pool.requestRedeem(shares2);
 
-        // Partial stop: the first request is too big, so nothing is paid and FIFO order holds.
+        // First request too big: nothing paid, FIFO holds.
         assertEq(pool.processQueue(10), 0);
 
         // investor2 changes their mind.
@@ -193,7 +193,7 @@ contract FlowsTest is BaseTest {
         pool.cancelRedeem(req2);
         assertEq(pool.balanceOf(investor2), shares2);
 
-        // The lease closes cleanly → the reserve frees → the first request is paid at the current price.
+        // Lease closes → reserve frees → request paid.
         vm.warp(pm.claimWindowEnd(id) + 1);
         pm.closeIfNoClaim(id);
         uint256 expected = pool.previewRedeem(shares1);
@@ -234,7 +234,7 @@ contract FlowsTest is BaseTest {
         assertGt(_sharePrice(), price);
     }
 
-    /// SPEC §9 demo script, step by step, with the numbers the UI shows.
+    /// Demo script, step by step.
     function test_Flow_demoScript() public {
         // 1. Investor deposited 5,000 in setUp. Seed deposit 1 → 5,001.
         assertEq(pool.totalAssets(), 5_001e6);
@@ -268,7 +268,7 @@ contract FlowsTest is BaseTest {
         uint256 claimId = _fileClaim(id, 300e6);
         assertLt(_sharePrice(), price);
 
-        // 6. Tenant disputes → arbiter approves 200 → landlord paid at once; tenant owes 200 in 6 installments.
+        // 6. Dispute → arbiter approves 200 → tenant owes 200.
         vm.prank(tenant);
         cm.disputeClaim(claimId, "Wardrobe was already damaged");
         uint256 landlordBefore = usdg.balanceOf(landlord);
@@ -284,7 +284,7 @@ contract FlowsTest is BaseTest {
         cm.repay(claimId, 70e6);
         assertEq(pool.totalAssets() - assetsBefore, 70e6);
 
-        // 8. A defaulted debt elsewhere is covered by the first-loss reserve first (see the default flow).
+        // 8. Defaults: see the default flow.
         assertEq(pool.totalClaimsPaid(), 200e6);
         assertEq(pool.totalRecoveries(), 70e6);
     }

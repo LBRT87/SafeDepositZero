@@ -10,17 +10,7 @@ import {PolicyManager} from "../src/PolicyManager.sol";
 import {ClaimManager} from "../src/ClaimManager.sol";
 import {Policy, ClaimType} from "../src/libraries/Types.sol";
 
-/// @notice Shared config for the seed scripts (SPEC §7.13). WRITTEN, NOT EXECUTED BY THE AGENT.
-///
-/// The seed fills every dashboard: investor capital, a tenant with a clean history, an active policy, an ended
-/// policy in its claim window, a disputed claim and a defaulted debt covered by the first-loss reserve.
-/// It runs in three phases because the demo profile counts real minutes (1 minute = 1 month):
-///   Phase 1 → wait 6–10 minutes → Phase 2 → wait 6–10 minutes → Phase 3.
-///
-/// Keys come from YOUR shell at run time (never commit them):
-///   INVESTOR_PRIVATE_KEY, LANDLORD_PRIVATE_KEY, TENANT_PRIVATE_KEY, TENANT2_PRIVATE_KEY
-/// Deployed addresses: USDG_ADDRESS, POOL_ADDRESS, POLICY_MANAGER_ADDRESS, CLAIM_MANAGER_ADDRESS.
-/// Every wallet needs testnet ETH for gas. With real USDG the investor needs ~5,000 and each tenant ~200.
+/// @notice Shared config for the 3-phase demo seed. Keys and addresses come from env.
 abstract contract SeedBase is Script {
     IERC20 usdg;
     GuaranteePool pool;
@@ -35,7 +25,7 @@ abstract contract SeedBase is Script {
 
     bytes32 constant CHECK_IN_HASH = keccak256("seed/check-in-manifest-v1");
     bytes32 constant CHECK_OUT_HASH = keccak256("seed/check-out-manifest-v1");
-    // TODO: replace with the CIDs of real manifests pinned through /api/evidence if you want photos in the UI.
+    // Placeholder evidence CIDs
     string constant CHECK_IN_CID = "";
     string constant CHECK_OUT_CID = "";
 
@@ -79,8 +69,7 @@ abstract contract SeedBase is Script {
     }
 }
 
-/// @notice Phase 1:
-///   forge script script/Seed.s.sol:SeedPhase1 --rpc-url arbitrum_sepolia --broadcast
+/// @notice Phase 1.
 contract SeedPhase1 is SeedBase {
     function run() external {
         _load();
@@ -106,7 +95,7 @@ contract SeedPhase1 is SeedBase {
         _setupTenant(tenantKey, 1_000 * unit);
         _setupTenant(tenant2Key, 500 * unit);
 
-        // Prepay every period so nothing lapses while the demo clock runs.
+        // Prepay so nothing lapses.
         vm.startBroadcast(tenantKey);
         _acceptAndPrepay(happyId);
         _acceptAndPrepay(disputedId);
@@ -124,8 +113,7 @@ contract SeedPhase1 is SeedBase {
     }
 }
 
-/// @notice Phase 2 (6–10 minutes after phase 1, while the 6-month leases are in their claim window):
-///   forge script script/Seed.s.sol:SeedPhase2 --rpc-url arbitrum_sepolia --broadcast
+/// @notice Phase 2, 6–10 minutes after phase 1.
 contract SeedPhase2 is SeedBase {
     function run() external {
         _load();
@@ -163,10 +151,7 @@ contract SeedPhase2 is SeedBase {
     }
 }
 
-/// @notice Phase 3 (6–10 minutes after phase 2):
-///   forge script script/Seed.s.sol:SeedPhase3 --rpc-url arbitrum_sepolia --broadcast
-/// Leaves: a clean history for the tenant (tier A next time), a defaulted debt covered by the first-loss
-/// reserve, and an ended policy with its claim window open.
+/// @notice Phase 3, 6–10 minutes after phase 2.
 contract SeedPhase3 is SeedBase {
     function run() external {
         _load();

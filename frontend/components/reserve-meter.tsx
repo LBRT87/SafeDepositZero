@@ -1,10 +1,7 @@
 import { clsx } from "clsx";
 import { pct } from "@/lib/format";
 
-/**
- * Reserve ratio meter: green fill, a 2px ink tick at the minimum. Fill turns alert below minimum.
- * Scale runs to 2× the minimum's headroom (0%–max(ratio, 250%)).
- */
+/** Reserve ratio meter with a tick at the minimum. */
 export function ReserveMeter({ ratioBps, minBps }: { ratioBps: number | null; minBps: number }) {
   const scaleMax = Math.max(25_000, (ratioBps ?? 0) * 1.1);
   const ratio = ratioBps ?? scaleMax;

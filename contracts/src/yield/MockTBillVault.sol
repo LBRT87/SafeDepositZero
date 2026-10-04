@@ -7,17 +7,12 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ZeroAmount, ParamOutOfBounds, InsufficientLiquidity} from "../libraries/Errors.sol";
 
 /// @title MockTBillVault
-/// @notice Testnet stand-in for a tokenized T-bill fund (BENJI / BUIDL). Positions accrue simple interest:
-///
-///   value = principal + principal × aprBps × elapsed × timeMultiplier / (365 days × 10_000)
-///
-/// `timeMultiplier` speeds up accrual for the demo (1440 → 1 real minute = 1 simulated day). SIMULATED YIELD.
-/// Interest is paid out of a yield reserve the owner pre-funds via `fundYieldReserve`.
+/// @notice Simulated tokenized T-bill fund (simple interest).
 contract MockTBillVault is Ownable {
     using SafeERC20 for IERC20;
 
     struct Position {
-        uint256 principal; // includes interest crystallized at the last touch
+        uint256 principal; // incl. accrued interest
         uint64 lastAccrual;
     }
 
@@ -68,7 +63,7 @@ contract MockTBillVault is Ownable {
         emit Withdrawn(msg.sender, amount);
     }
 
-    /// @notice Owner pre-funds the USDG used to pay simulated interest.
+    /// @notice Funds simulated interest.
     function fundYieldReserve(uint256 amount) external {
         asset.safeTransferFrom(msg.sender, address(this), amount);
         emit YieldReserveFunded(amount);
@@ -80,7 +75,7 @@ contract MockTBillVault is Ownable {
         emit AprUpdated(newApr);
     }
 
-    /// @notice Applies from each position's last accrual. Labelled "simulated" in the UI.
+    /// @notice Demo speed-up.
     function setTimeMultiplier(uint256 newMultiplier) external onlyOwner {
         if (newMultiplier == 0 || newMultiplier > MAX_TIME_MULTIPLIER) revert ParamOutOfBounds();
         timeMultiplier = newMultiplier;

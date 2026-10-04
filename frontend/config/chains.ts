@@ -1,7 +1,7 @@
 import { defineChain } from "viem";
 import { arbitrumSepolia } from "viem/chains";
 
-// Robinhood Chain testnet (Arbitrum Orbit L2). Chain id, RPC and explorer from docs.robinhood.com/chain/connecting.
+// Robinhood Chain testnet
 export const robinhoodTestnet = defineChain({
   id: Number(process.env.NEXT_PUBLIC_ROBINHOOD_TESTNET_CHAIN_ID || 46_630),
   name: "Robinhood Chain Testnet",
@@ -16,10 +16,10 @@ export const robinhoodTestnet = defineChain({
 
 export const SUPPORTED_CHAINS = [arbitrumSepolia, robinhoodTestnet] as const;
 
-/** The chain the app reads and writes. NEXT_PUBLIC_CHAIN=robinhood switches a deployment to Robinhood testnet. */
+/** Active chain; NEXT_PUBLIC_CHAIN=robinhood switches it. */
 export const PRIMARY_CHAIN = process.env.NEXT_PUBLIC_CHAIN === "robinhood" ? robinhoodTestnet : arbitrumSepolia;
 
-/** Optional private RPC for reads; the chain's public RPC is used when it's empty. */
+/** Optional read RPC. */
 export const READ_RPC_URL =
   PRIMARY_CHAIN.id === arbitrumSepolia.id
     ? process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || arbitrumSepolia.rpcUrls.default.http[0]

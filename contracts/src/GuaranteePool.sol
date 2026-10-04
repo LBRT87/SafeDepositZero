@@ -24,17 +24,7 @@ import {
 } from "./libraries/Errors.sol";
 
 /// @title GuaranteePool
-/// @notice ERC-4626 vault (USDG → sdUSDG) that backs rental deposit guarantees (SPEC §5).
-///
-///   grossAssets = idle USDG + yield adapter value
-///   totalAssets = grossAssets − firstLossBalance − pendingClaimsLiability   (floored at 0)
-///
-///  - Tenant debt is not counted until repaid. Filed claims lower the share price immediately.
-///  - First-loss reserve: funded from the protocol fee, excluded from investor assets, never withdrawable,
-///    and spent only by `coverDefault`, which moves it into investor assets when a tenant defaults.
-///  - Reserve rule: totalAssets ≥ minReserveBps × activeCoverage after any activation or withdrawal.
-///  - Concentration: one landlord's coverage ≤ max(concentrationFloor, maxLandlordShareBps × capacity).
-///  - Withdrawals above what is free right now go into a FIFO queue (`requestRedeem` / `processQueue`).
+/// @notice ERC-4626 USDG vault backing rental deposit guarantees.
 contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -70,7 +60,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
     uint256 public queueHead;
     uint256 public queuedShares;
 
-    // Lifetime accounting, used by the APY breakdown and invariant tests.
+    // Lifetime totals
     uint256 public totalPremiumsReceived;
     uint256 public totalFirstLossFunded;
     uint256 public totalFirstLossCovered;
@@ -99,16 +89,15 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    // ───────────────────────────── Views ─────────────────────────────
+    // Views
 
-    /// @notice Idle USDG plus the yield adapter position, including the first-loss reserve and money owed on
-    ///         pending claims.
+    /// @notice Idle USDG + adapter value.
     function grossAssets() public view returns (uint256) {
         uint256 adapterValue = address(yieldAdapter) == address(0) ? 0 : yieldAdapter.totalValue();
         return idleAssets() + adapterValue;
     }
 
-    /// @notice Investor assets: gross minus the first-loss reserve and pending claims.
+    /// @notice Investor assets: gross minus first-loss and pending claims.
     function totalAssets() public view override returns (uint256) {
         uint256 gross = grossAssets();
         uint256 held = firstLossBalance + pendingClaimsLiability;
@@ -119,42 +108,42 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         return IERC20(asset()).balanceOf(address(this));
     }
 
-    /// @notice Assets that must stay in the pool for `coverage` of active guarantees.
+    /// @notice Reserve required for `coverage`.
     function requiredReserve(uint256 coverage) public view returns (uint256) {
         return Math.mulDiv(coverage, minReserveBps, BPS, Math.Rounding.Ceil);
     }
 
-    /// @notice totalAssets / activeCoverage in bps. type(uint256).max when nothing is covered.
+    /// @notice totalAssets / activeCoverage, in bps.
     function reserveRatioBps() public view returns (uint256) {
         if (activeCoverage == 0) return type(uint256).max;
         return Math.mulDiv(totalAssets(), BPS, activeCoverage);
     }
 
-    /// @notice activeCoverage / totalAssets in bps.
+    /// @notice activeCoverage / totalAssets, in bps.
     function utilizationBps() public view returns (uint256) {
         uint256 assets = totalAssets();
         if (assets == 0) return activeCoverage == 0 ? 0 : type(uint256).max;
         return Math.mulDiv(activeCoverage, BPS, assets);
     }
 
-    /// @notice Investor assets not needed to back active coverage: the most that can leave the pool right now.
+    /// @notice Assets not backing active coverage.
     function freeAssets() public view returns (uint256) {
         uint256 assets = totalAssets();
         uint256 required = requiredReserve(activeCoverage);
         return assets > required ? assets - required : 0;
     }
 
-    /// @notice Total coverage the pool could back at the reserve minimum.
+    /// @notice Max coverage at the reserve minimum.
     function capacity() public view returns (uint256) {
         return Math.mulDiv(totalAssets(), BPS, minReserveBps);
     }
 
-    /// @notice Most coverage a single landlord may hold.
+    /// @notice Max coverage per landlord.
     function landlordLimit() public view returns (uint256) {
         return Math.max(concentrationFloor, Math.mulDiv(capacity(), maxLandlordShareBps, BPS));
     }
 
-    /// @notice Most new coverage `landlord` could add right now (reserve and concentration rules).
+    /// @notice New coverage `landlord` can still add.
     function maxNewCoverage(address landlord) external view returns (uint256) {
         uint256 cap = capacity();
         uint256 byReserve = cap > activeCoverage ? cap - activeCoverage : 0;
@@ -164,7 +153,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         return Math.min(byReserve, byConcentration);
     }
 
-    /// @notice How much more the first-loss reserve can take before it reaches its cap.
+    /// @notice Room left in the first-loss reserve.
     function firstLossRoom() public view returns (uint256) {
         uint256 cap = Math.mulDiv(totalAssets(), firstLossCapBps, BPS);
         return cap > firstLossBalance ? cap - firstLossBalance : 0;
@@ -182,14 +171,13 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         return _requests[requestId];
     }
 
-    // ───────────────────── ERC-4626 overrides ─────────────────────
+    // ERC-4626 overrides
 
     function _decimalsOffset() internal pure override returns (uint8) {
-        return 6; // inflation-attack mitigation (virtual shares)
+        return 6; // inflation-attack guard
     }
 
-    /// @notice True while open claims exceed investor assets. New money would only fill the hole, so deposits
-    ///         are refused until the claims settle or recoveries arrive.
+    /// @notice True when claims exceed investor assets; deposits are blocked.
     function isUnderwater() public view returns (bool) {
         return totalSupply() > 0 && totalAssets() == 0;
     }
@@ -222,7 +210,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         return super.mint(shares, receiver);
     }
 
-    /// @dev Withdrawals keep working while paused, but only for capital not backing active guarantees.
+    /// @dev Works while paused, within free assets.
     function withdraw(uint256 assets, address receiver, address owner)
         public
         override
@@ -248,10 +236,9 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         super._withdraw(caller, receiver, owner, assets, shares);
     }
 
-    // ───────────────────────── Withdrawal queue ─────────────────────────
+    // Withdrawal queue
 
-    /// @notice Queues `shares` for redemption. They move into pool escrow and keep bearing gains and losses
-    ///         until processed at the then-current price.
+    /// @notice Escrows shares for later redemption.
     function requestRedeem(uint256 shares) external nonReentrant returns (uint256 requestId) {
         if (shares == 0) revert ZeroAmount();
         _transfer(msg.sender, address(this), shares);
@@ -265,7 +252,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit RedeemRequested(requestId, msg.sender, shares);
     }
 
-    /// @notice Returns escrowed shares for a request that hasn't been processed yet.
+    /// @notice Returns unprocessed escrowed shares.
     function cancelRedeem(uint256 requestId) external nonReentrant {
         RedeemRequest storage r = _requests[requestId];
         if (r.owner != msg.sender) revert NotRequestOwner();
@@ -277,8 +264,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit RedeemCancelled(requestId, msg.sender, shares);
     }
 
-    /// @notice Pays queued requests in order while liquidity and the reserve allow. Stops at the first request
-    ///         that can't be filled in full. Permissionless; at most `maxCount` entries are visited.
+    /// @notice Pays queued requests in FIFO order. Permissionless.
     function processQueue(uint256 maxCount) external nonReentrant returns (uint256 processed) {
         uint256 i = queueHead;
         uint256 end = _requests.length;
@@ -303,9 +289,9 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         queueHead = i;
     }
 
-    // ─────────────────── Protocol hooks (role-gated) ───────────────────
+    // Protocol hooks
 
-    /// @notice Adds coverage for a newly active policy. Enforces the reserve and concentration rules.
+    /// @notice Adds coverage; enforces reserve and concentration.
     function increaseCoverage(address landlord, uint256 amount)
         external
         onlyRole(POLICY_MANAGER_ROLE)
@@ -326,14 +312,14 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit CoverageChanged(landlord, landlordCoverage, newCoverage);
     }
 
-    /// @notice Releases coverage when a policy closes.
+    /// @notice Releases coverage.
     function decreaseCoverage(address landlord, uint256 amount) external onlyRole(POLICY_MANAGER_ROLE) {
         activeCoverage -= amount;
         coverageByLandlord[landlord] -= amount;
         emit CoverageChanged(landlord, coverageByLandlord[landlord], activeCoverage);
     }
 
-    /// @notice Bookkeeping for a premium; the PolicyManager has already sent `toPool + toFirstLoss` here.
+    /// @notice Records a premium already transferred in.
     function receivePremium(uint256 toPool, uint256 toFirstLoss) external onlyRole(POLICY_MANAGER_ROLE) {
         totalPremiumsReceived += toPool;
         if (toFirstLoss > 0) {
@@ -343,19 +329,19 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit PremiumReceived(toPool, toFirstLoss);
     }
 
-    /// @notice A claim was filed: the claimed amount stops counting as investor assets right away.
+    /// @notice Holds a filed claim against investor assets.
     function addPendingClaim(uint256 amount) external onlyRole(CLAIM_MANAGER_ROLE) {
         pendingClaimsLiability += amount;
         emit PendingClaimsChanged(pendingClaimsLiability);
     }
 
-    /// @notice A claim was resolved: swap the claimed amount for the approved one (0 when rejected).
+    /// @notice Swaps the claimed amount for the approved one.
     function updatePendingClaim(uint256 oldAmount, uint256 newAmount) external onlyRole(CLAIM_MANAGER_ROLE) {
         pendingClaimsLiability = pendingClaimsLiability - oldAmount + newAmount;
         emit PendingClaimsChanged(pendingClaimsLiability);
     }
 
-    /// @notice Pays an approved claim to the landlord, pulling from the yield adapter if idle cash is short.
+    /// @notice Pays an approved claim to the landlord.
     function payClaim(address landlord, uint256 amount) external onlyRole(CLAIM_MANAGER_ROLE) nonReentrant {
         if (landlord == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
@@ -367,14 +353,13 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit ClaimPayout(landlord, amount);
     }
 
-    /// @notice Bookkeeping for a tenant repayment; the ClaimManager has already transferred the tokens.
+    /// @notice Records a tenant repayment.
     function receiveRepayment(uint256 amount) external onlyRole(CLAIM_MANAGER_ROLE) {
         totalRecoveries += amount;
         emit RepaymentReceived(amount);
     }
 
-    /// @notice A tenant defaulted: the first-loss reserve covers up to `amount` by moving into investor assets.
-    /// @return covered The part covered by the reserve. Investors absorb the rest.
+    /// @notice First-loss covers a default, up to its balance.
     function coverDefault(uint256 amount) external onlyRole(CLAIM_MANAGER_ROLE) returns (uint256 covered) {
         covered = Math.min(amount, firstLossBalance);
         if (covered > 0) {
@@ -384,16 +369,15 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit FirstLossUsed(covered, firstLossBalance);
     }
 
-    /// @notice Bookkeeping for USDG partner rewards; the distributor has already transferred the tokens.
+    /// @notice Records USDG partner rewards.
     function receiveRewards(uint256 amount) external onlyRole(REWARDS_ROLE) {
         totalRewardsReceived += amount;
         emit RewardsReceived(amount);
     }
 
-    // ───────────────────────── Yield management ─────────────────────────
+    // Yield
 
-    /// @notice Keeps `liquidityTargetBps` of investor assets idle (plus the first-loss reserve and pending
-    ///         claims) and moves the rest into the adapter, or pulls it back. Value-neutral, so permissionless.
+    /// @notice Moves idle USDG to or from the adapter. Permissionless.
     function rebalance() external nonReentrant {
         IYieldAdapter adapter = yieldAdapter;
         if (address(adapter) == address(0)) return;
@@ -413,7 +397,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit Rebalanced(idleAssets(), adapter.totalValue());
     }
 
-    /// @notice Switches yield source. Any position in the old adapter is pulled back first.
+    /// @notice Switches adapter, withdrawing from the old one.
     function setYieldAdapter(IYieldAdapter newAdapter) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
         if (address(newAdapter) != address(0) && newAdapter.asset() != asset()) revert ParamOutOfBounds();
         IYieldAdapter old = yieldAdapter;
@@ -425,7 +409,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit YieldAdapterUpdated(address(newAdapter));
     }
 
-    // ───────────────────────────── Admin ─────────────────────────────
+    // Admin
 
     function setMinReserveBps(uint256 bps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (bps < MIN_RESERVE_FLOOR_BPS || bps > BPS) revert ParamOutOfBounds();
@@ -457,8 +441,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         emit ParamsUpdated("concentrationFloor", amount);
     }
 
-    /// @notice Pauses new deposits and new coverage. Claims, repayments, the queue and excess withdrawals keep
-    ///         working.
+    /// @notice Pauses deposits and new coverage.
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
@@ -467,7 +450,7 @@ contract GuaranteePool is ERC4626, AccessControl, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    // ───────────────────────────── Internal ─────────────────────────────
+    // Internal
 
     function _checkReserveAfterWithdraw(uint256 assets) private view {
         uint256 current = totalAssets();

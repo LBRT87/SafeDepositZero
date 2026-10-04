@@ -5,14 +5,7 @@ import {IPremiumCalculator} from "./interfaces/IPremiumCalculator.sol";
 import {InvalidTier, InvalidPeriods, ParamOutOfBounds} from "./libraries/Errors.sol";
 
 /// @title PremiumCalculatorSol
-/// @notice Solidity fallback of the Stylus `PremiumCalculator` (stylus/premium-calculator). Same ABI, same math:
-///
-///   annualPremium  = coverage × baseRateBps × termFactor × tierMultiplier / 10_000 / 100 / 100
-///   monthlyPremium = max(annualPremium / 12, minMonthlyPremium)      (both rounded up to 0.01 token)
-///
-/// termFactor (×100):  totalPeriods ≥ 24 → 95 · 12–23 → 100 · 6–11 → 110 · < 6 → 100
-///   (< 6 periods only exists in the demo profile and is priced at the standard 12-month factor.)
-/// tierMultiplier (×100): A → 80 · B → 100 · C → 130
+/// @notice Solidity twin of the Stylus premium calculator.
 contract PremiumCalculatorSol is IPremiumCalculator {
     uint256 public constant BASE_RATE_BPS = 900;
     uint256 private constant DENOMINATOR = 10_000 * 100 * 100; // bps × termFactor scale × tier scale
@@ -20,7 +13,7 @@ contract PremiumCalculatorSol is IPremiumCalculator {
     uint256 public immutable minMonthlyPremium;
     uint256 public immutable roundingUnit;
 
-    /// @param tokenDecimals Decimals of the premium token (USDG = 6). Must be ≥ 2 so 0.01 token is representable.
+    /// @param tokenDecimals Premium token decimals (≥ 2).
     constructor(uint8 tokenDecimals) {
         if (tokenDecimals < 2 || tokenDecimals > 30) revert ParamOutOfBounds();
         minMonthlyPremium = 5 * 10 ** tokenDecimals;

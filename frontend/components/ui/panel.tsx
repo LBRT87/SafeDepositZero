@@ -46,7 +46,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
   );
 }
 
-/** Label/value pair used in detail grids. */
+/** Label/value pair. */
 export function Stat({
   label,
   value,

@@ -12,10 +12,7 @@ import { TIER_COPY } from "@/lib/premium";
 import { useSession } from "@/lib/session";
 import { TERMS } from "@/lib/data/types";
 
-/**
- * Tenant quote: see the fee and where it goes before asking the landlord for an invite.
- * Guarantees start from a landlord invite on-chain, so the next step is opening the invite.
- */
+/** Fee preview before asking for an invite. */
 export function QuotePanel() {
   const router = useRouter();
   const time = useTimeConfig();

@@ -17,7 +17,7 @@ import type { AdminParams, ParamKey } from "@/lib/data/types";
 
 type Unit = "bps" | "usdg";
 
-/** Same bounds as the contract setters; shown so the admin knows what will be accepted. */
+/** Contract setter bounds. */
 const PARAMS: { key: ParamKey; label: string; help: string; unit: Unit; min: bigint; max: bigint }[] = [
   { key: "protocolFeeBps", label: "Protocol fee", help: "Share of each monthly fee kept by SafeDeposit Zero.", unit: "bps", min: 0n, max: 4_000n },
   { key: "firstLossShareBps", label: "First-loss share of the fee", help: "Part of the protocol fee sent to the first-loss reserve.", unit: "bps", min: 0n, max: 10_000n },
@@ -236,7 +236,7 @@ function Keeper({ title, body, children }: { title: string; body: string; childr
   );
 }
 
-/** Mock only. On testnet the demo profile already runs 1 minute = 1 month, so there's nothing to fast-forward. */
+/** Mock only. */
 function DemoClock() {
   const steps: [string, number][] = [
     ["+3 days", 6],

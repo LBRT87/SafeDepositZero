@@ -10,13 +10,7 @@ import {GuaranteePool} from "../GuaranteePool.sol";
 import {ParamOutOfBounds, ZeroAddress} from "../libraries/Errors.sol";
 
 /// @title MockGdnRewardsDistributor
-/// @notice Testnet stand-in for Global Dollar Network partner rewards on idle USDG (SPEC §5.1). SIMULATED.
-///         In production Paxos shares reserve yield with GDN partners off-chain; here the owner pre-funds
-///         this contract and anyone can push the accrued reward into the pool:
-///
-///   reward = idleUSDG × gdnAprBps × elapsed × timeMultiplier / (365 days × 10_000)   (capped by balance)
-///
-/// Needs REWARDS_ROLE on the pool.
+/// @notice Simulated USDG partner rewards on idle pool cash.
 contract MockGdnRewardsDistributor is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -42,14 +36,14 @@ contract MockGdnRewardsDistributor is Ownable, ReentrancyGuard {
         lastDistribution = uint64(block.timestamp);
     }
 
-    /// @notice Reward accrued since the last distribution, capped by what this contract holds.
+    /// @notice Accrued reward, capped by balance.
     function pendingRewards() public view returns (uint256) {
         uint256 elapsed = block.timestamp - lastDistribution;
         uint256 accrued = Math.mulDiv(pool.idleAssets(), gdnAprBps * elapsed * timeMultiplier, 365 days * 10_000);
         return Math.min(accrued, usdg.balanceOf(address(this)));
     }
 
-    /// @notice Pays accrued rewards into the pool, raising the share price. Permissionless.
+    /// @notice Pays accrued rewards into the pool. Permissionless.
     function distributeRewards() external nonReentrant returns (uint256 amount) {
         uint256 elapsed = block.timestamp - lastDistribution;
         uint256 idle = pool.idleAssets();
@@ -62,7 +56,7 @@ contract MockGdnRewardsDistributor is Ownable, ReentrancyGuard {
         pool.receiveRewards(amount);
     }
 
-    /// @notice Pre-funds the USDG used to pay simulated rewards.
+    /// @notice Funds simulated rewards.
     function fund(uint256 amount) external {
         usdg.safeTransferFrom(msg.sender, address(this), amount);
         emit RewardsFunded(amount);
@@ -74,7 +68,7 @@ contract MockGdnRewardsDistributor is Ownable, ReentrancyGuard {
         emit AprUpdated(newApr);
     }
 
-    /// @notice Speeds up simulated accrual for the demo profile.
+    /// @notice Demo speed-up.
     function setTimeMultiplier(uint256 newMultiplier) external onlyOwner {
         if (newMultiplier == 0 || newMultiplier > MAX_TIME_MULTIPLIER) revert ParamOutOfBounds();
         timeMultiplier = newMultiplier;

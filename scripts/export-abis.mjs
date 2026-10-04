@@ -1,5 +1,4 @@
-// Copies ABIs from `forge build` output (contracts/out) to frontend/abi/*.json.
-// Usage: (cd contracts && forge build) && node scripts/export-abis.mjs
+// Copies ABIs from contracts/out to frontend/abi. Run after `forge build`.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

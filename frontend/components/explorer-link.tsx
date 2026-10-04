@@ -5,7 +5,7 @@ import { IS_MOCK } from "@/lib/data";
 import { explorerTx, PRIMARY_CHAIN } from "@/config/chains";
 import { shortAddress } from "@/lib/format";
 
-/** Explorer link for a tx. In mock mode the hash is simulated, so it's shown but not linked. */
+/** Tx link; plain text in mock mode. */
 export function ExplorerLink({ hash, label = "View on explorer" }: { hash: string; label?: string }) {
   if (IS_MOCK) {
     return (

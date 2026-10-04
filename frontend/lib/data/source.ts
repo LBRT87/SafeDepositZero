@@ -24,31 +24,27 @@ import type {
   TxReceipt,
 } from "./types";
 
-/**
- * The only thing UI components talk to. `MockDataSource` (lib/data/mock.ts) implements it in memory;
- * `OnchainDataSource` (lib/data/onchain.ts) documents the contract call behind every method.
- * See INTEGRATION.md for the method → contract → function table.
- */
+/** The UI's only data dependency. Implemented by the mock and onchain sources. */
 export interface DataSource {
   readonly kind: "mock" | "onchain";
 
-  // ── Environment ──
+  // Environment
   now(): number;
   getTimeConfig(): Promise<TimeConfig>;
-  /** Mock only: the demo personas. Onchain returns []. */
+  /** Mock only: demo personas. */
   getDemoWallets(): DemoWallet[];
-  /** Notifies when data may have changed (mock state change, new block). Returns unsubscribe. */
+  /** Fires when data may have changed. Returns unsubscribe. */
   subscribe(listener: () => void): () => void;
 
-  // ── Reads ──
+  // Reads
   getPoolStats(): Promise<PoolStats>;
   getPoolActivity(): Promise<ActivityEntry[]>;
   getSharePriceHistory(): Promise<SharePricePoint[]>;
   getInvestorPosition(account: Address): Promise<InvestorPosition>;
   previewDeposit(amount: bigint): Promise<bigint>;
-  /** Shares an amount of USDG is worth right now (for "request the rest"). */
+  /** Shares worth `assets` now. */
   previewWithdrawShares(amount: bigint): Promise<bigint>;
-  /** Most new coverage this landlord could add (reserve + concentration rules). */
+  /** New coverage this landlord can add. */
   maxNewCoverage(landlord: Address): Promise<bigint>;
 
   getPolicies(filter: { landlord?: Address; tenant?: Address }): Promise<Policy[]>;
@@ -68,7 +64,7 @@ export interface DataSource {
   hasAdminRole(account: Address): Promise<boolean>;
   getAdminParams(): Promise<AdminParams>;
 
-  // ── Writes (each reports wallet → confirming → done through opts.onStage) ──
+  // Writes (report stages via opts.onStage)
   approve(spender: Spender, amount: bigint, opts: TxOptions): Promise<TxReceipt>;
   createInvite(input: CreateInviteInput, opts: TxOptions): Promise<TxReceipt & { policyId: number }>;
   cancelInvite(policyId: number, opts: TxOptions): Promise<TxReceipt>;
@@ -101,6 +97,6 @@ export interface DataSource {
 
   // Demo helpers
   mintTestUsdg(amount: bigint, opts: TxOptions): Promise<TxReceipt>;
-  /** Off-chain evidence storage (IPFS via /api/evidence in production). */
+  /** Evidence storage (IPFS via /api/evidence). */
   storeEvidence(bundle: EvidenceBundle): Promise<void>;
 }

@@ -6,7 +6,7 @@ import { KNOWN_NAMES } from "@/lib/data/mock";
 import { IS_MOCK } from "@/lib/data";
 import { shortAddress } from "@/lib/format";
 
-/** Truncated mono address with a copy button. Shows the demo persona name when known. */
+/** Short address with copy; shows demo names. */
 export function AddressTag({
   address,
   showName = true,
@@ -14,7 +14,7 @@ export function AddressTag({
 }: {
   address: string | null | undefined;
   showName?: boolean;
-  /** Name on one line, address below (narrow layouts). */
+  /** Name above address. */
   stacked?: boolean;
 }) {
   const [copied, setCopied] = useState(false);

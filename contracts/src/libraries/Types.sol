@@ -38,10 +38,10 @@ struct Policy {
     uint256 id;
     address landlord;
     address tenant; // zero = open invite; set on accept
-    string propertyRef; // short label, e.g. "Unit 12B, Orchard"
+    string propertyRef; // e.g. "Unit 12B"
     uint128 monthlyRent; // informational
     uint128 coverage; // = deposit amount guaranteed
-    uint128 monthlyPremium; // set at accept, once the tenant's tier is known
+    uint128 monthlyPremium; // set at accept
     uint64 startTime;
     uint64 endTime;
     uint64 nextPremiumDue; // 0 once every period is paid
@@ -50,8 +50,8 @@ struct Policy {
     uint32 totalPeriods; // 6 or 12
     RiskTier tier;
     PolicyStatus status;
-    string checkInCid; // landlord check-in bundle (IPFS manifest)
-    bytes32 checkInHash; // keccak256 of the manifest bytes
+    string checkInCid; // IPFS manifest
+    bytes32 checkInHash; // manifest hash
     string tenantCheckInCid; // optional tenant move-in notes
     bytes32 tenantCheckInHash;
 }
@@ -62,10 +62,10 @@ struct Claim {
     uint128 amountClaimed;
     uint128 amountApproved;
     uint64 filedAt;
-    uint64 responseDeadline; // tenant must respond by this time
+    uint64 responseDeadline; // tenant reply deadline
     uint64 arbiterDeadline;
     ClaimStatus status;
-    string evidenceCid; // check-out bundle (IPFS manifest)
+    string evidenceCid; // IPFS manifest
     bytes32 evidenceHash;
     string landlordNote;
     string tenantNote;
@@ -80,7 +80,7 @@ struct Debt {
     bool defaulted;
 }
 
-/// @notice All protocol durations. Fixed at deploy (`demo` or `prod` profile).
+/// @notice Protocol durations, fixed at deploy.
 struct TimeConfig {
     uint64 premiumPeriod;
     uint64 gracePeriod;
@@ -93,7 +93,7 @@ struct TimeConfig {
 }
 
 library TimeProfiles {
-    /// @notice Production durations (SPEC §6).
+    /// @notice Production durations.
     function prod() internal pure returns (TimeConfig memory) {
         return TimeConfig({
             premiumPeriod: 30 days,
@@ -107,7 +107,7 @@ library TimeProfiles {
         });
     }
 
-    /// @notice Hackathon demo durations: 1 minute = 1 month, windows long enough to click through live.
+    /// @notice Demo durations: 1 minute = 1 month.
     function demo() internal pure returns (TimeConfig memory) {
         return TimeConfig({
             premiumPeriod: 1 minutes,

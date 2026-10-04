@@ -17,28 +17,15 @@ import {MockGdnRewardsDistributor} from "../src/yield/MockGdnRewardsDistributor.
 import {TimeConfig, TimeProfiles} from "../src/libraries/Types.sol";
 
 /// @title Deploy
-/// @notice Deploys the full protocol. WRITTEN, NOT EXECUTED BY THE AGENT — run it yourself, e.g.:
-///
-///   forge script script/Deploy.s.sol:Deploy --rpc-url arbitrum_sepolia --account deployer --broadcast
-///
-/// Configuration (all optional, read from env):
-///   TIME_PROFILE           "demo" (default, 1 minute = 1 month) or "prod"
-///   USE_MOCK_USDG          true → deploy MockUSDG (public mint) instead of using Paxos test USDG
-///   USDG_ADDRESS           override the USDG token address
-///   STYLUS_CALCULATOR      address of the deployed Stylus PremiumCalculator; unset → deploy PremiumCalculatorSol
-///   TREASURY_ADDRESS       protocol fee receiver (default: deployer)
-///   ARBITER_ADDRESS        first arbiter (default: deployer)
-///   SEED_DEPOSIT           first pool deposit in base units, kept by the deployer (default 1 USDG)
-///   YIELD_TIME_MULTIPLIER  simulated T-bill and GDN speed-up (default 43,200 in demo: 1 minute = 1 month)
-///   TBILL_YIELD_RESERVE    USDG (base units) pre-funded so the vault can pay simulated interest
-///   GDN_REWARDS_RESERVE    USDG (base units) pre-funded so the distributor can pay simulated rewards
-///                          (both default to 1,000 USDG with MockUSDG and 0 with real USDG — fund them later)
+/// @notice Deploys the protocol. Optional env: TIME_PROFILE (demo|prod), USE_MOCK_USDG, USDG_ADDRESS,
+/// STYLUS_CALCULATOR, TREASURY_ADDRESS, ARBITER_ADDRESS, SEED_DEPOSIT, YIELD_TIME_MULTIPLIER,
+/// TBILL_YIELD_RESERVE, GDN_REWARDS_RESERVE.
 contract Deploy is Script {
-    // Paxos USDG testnet tokens (SPEC §7.13).
+    // Paxos USDG testnet
     address internal constant USDG_ARBITRUM_SEPOLIA = 0xFFC95faa3d63Cde504a05B567C600B78C0b41892;
     address internal constant USDG_ROBINHOOD_TESTNET = 0x7E955252E15c84f5768B83c41a71F9eba181802F;
     uint256 internal constant ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
-    // Robinhood Chain testnet (docs.robinhood.com/chain/connecting); override with ROBINHOOD_CHAIN_ID if it changes.
+    // Robinhood Chain testnet; override with ROBINHOOD_CHAIN_ID.
     uint256 internal constant ROBINHOOD_TESTNET_CHAIN_ID_DEFAULT = 46630;
 
     struct Deployment {
@@ -67,12 +54,12 @@ contract Deploy is Script {
         (, deployer,) = vm.readCallers();
         d.deployBlock = block.number;
 
-        // 1. USDG
+        // USDG
         d.usdg = _resolveUsdg();
         decimals = IERC20Metadata(d.usdg).decimals();
         mock = _isMock(d.usdg);
 
-        // 2. Premium calculator: Stylus if provided, else the Solidity version with the identical ABI.
+        // Stylus calculator if given, else Solidity
         d.calculator = vm.envOr("STYLUS_CALCULATOR", address(0));
         if (d.calculator == address(0)) d.calculator = address(new PremiumCalculatorSol(decimals));
 
@@ -86,7 +73,7 @@ contract Deploy is Script {
         return d;
     }
 
-    /// 3. Registry, pool, policy and claim managers.
+    /// Core contracts.
     function _deployCore() internal {
         TimeConfig memory time = isDemo ? TimeProfiles.demo() : TimeProfiles.prod();
         address treasury = vm.envOr("TREASURY_ADDRESS", deployer);
@@ -103,7 +90,7 @@ contract Deploy is Script {
         d.claimManager = address(cm);
     }
 
-    /// 4. Yield sources (testnet: simulated T-bills + simulated GDN partner rewards).
+    /// Yield sources (simulated on testnet).
     function _deployYield() internal {
         uint256 multiplier = vm.envOr("YIELD_TIME_MULTIPLIER", isDemo ? uint256(43_200) : uint256(1));
         MockTBillVault vault = new MockTBillVault(IERC20(d.usdg), deployer);
@@ -116,7 +103,7 @@ contract Deploy is Script {
         d.gdnDistributor = address(gdn);
     }
 
-    /// 5. Roles and wiring.
+    /// Roles and wiring.
     function _wire() internal {
         GuaranteePool pool = GuaranteePool(d.pool);
         PolicyManager pm = PolicyManager(d.policyManager);
@@ -130,7 +117,7 @@ contract Deploy is Script {
         pool.setYieldAdapter(TBillAdapter(d.tbillAdapter));
     }
 
-    /// 6. Seed deposit (inflation-attack mitigation) and 7. reserves for simulated yield.
+    /// Seed deposit and simulated yield reserves.
     function _seedAndFund() internal {
         uint256 seed = vm.envOr("SEED_DEPOSIT", 10 ** decimals);
         if (mock) MockUSDG(d.usdg).mint(deployer, seed);

@@ -39,10 +39,10 @@ export function buttonClass(variant: ButtonVariant = "primary", size: ButtonSize
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  /** Shows a spinner and the in-progress verb ("Confirming…"); keeps width fixed and disables. */
+  /** Spinner + in-progress label; disabled. */
   loading?: boolean;
   loadingText?: string;
-  /** When set, the button is disabled and this explains why (tooltip + sr text). */
+  /** Disables the button and explains why. */
   disabledReason?: string | null;
   icon?: ReactNode;
 }

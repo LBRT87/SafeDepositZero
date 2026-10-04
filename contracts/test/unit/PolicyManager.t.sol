@@ -15,7 +15,7 @@ contract PolicyManagerTest is BaseTest {
         _deposit(investor, 5_000 * USDG);
     }
 
-    // ───────────── createInvite ─────────────
+    // createInvite
 
     function test_PolicyManager_createInviteStoresPolicy() public {
         vm.expectEmit(true, true, true, true);
@@ -112,7 +112,7 @@ contract PolicyManagerTest is BaseTest {
         pm.acceptInvite(id);
     }
 
-    // ───────────── acceptInvite ─────────────
+    // acceptInvite
 
     function test_PolicyManager_acceptActivatesAndSplitsPremium() public {
         uint256 id = _invite(COVER, 12);
@@ -217,7 +217,7 @@ contract PolicyManagerTest is BaseTest {
         assertFalse(blocked);
     }
 
-    // ───────────── check-in evidence ─────────────
+    // check-in evidence
 
     function test_PolicyManager_tenantAddsMoveInNotes() public {
         uint256 id = _active(COVER, 12);
@@ -248,7 +248,7 @@ contract PolicyManagerTest is BaseTest {
         pm.addCheckInEvidence(id, "", keccak256("x"));
     }
 
-    // ───────────── payPremium ─────────────
+    // payPremium
 
     function test_PolicyManager_payPremiumAdvancesSchedule() public {
         uint256 id = _active(COVER, 12);
@@ -298,7 +298,7 @@ contract PolicyManagerTest is BaseTest {
         assertEq(pm.getPolicy(id).periodsPaid, 2);
     }
 
-    // ───────────── keeper transitions ─────────────
+    // keeper transitions
 
     function testRevert_PolicyManager_markLapsedTooEarly() public {
         uint256 id = _active(COVER, 12);
@@ -400,7 +400,7 @@ contract PolicyManagerTest is BaseTest {
         pm.onClaimSettled(id, true);
     }
 
-    // ───────────── admin ─────────────
+    // admin
 
     function test_PolicyManager_adminSetters() public {
         vm.startPrank(admin);

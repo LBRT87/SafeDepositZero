@@ -1,5 +1,4 @@
-// Same integer math as PremiumCalculatorSol and the Stylus PremiumCalculator (SPEC §4.3).
-// Used by the mock data source; in onchain mode the quote comes from the contract.
+// Mirrors PremiumCalculatorSol. Used by the mock source.
 
 import type { RiskTier } from "./data/types";
 
@@ -33,10 +32,7 @@ export function quotePremium(coverage: bigint, periods: number, tier: RiskTier) 
   return { monthlyPremium, annualPremium };
 }
 
-/**
- * 75% to the pool; of the 25% protocol fee, 40% (10% of the premium) goes to the first-loss reserve until it
- * reaches its cap (`firstLossRoom`), the rest to the treasury.
- */
+/** 75% pool; 10% first-loss until capped; rest treasury. */
 export function splitPremium(amount: bigint, firstLossRoom: bigint = amount, feeBps = PROTOCOL_FEE_BPS, flShareBps = FIRST_LOSS_SHARE_BPS) {
   const fee = (amount * feeBps) / 10_000n;
   const wantFirstLoss = (fee * flShareBps) / 10_000n;
@@ -44,7 +40,7 @@ export function splitPremium(amount: bigint, firstLossRoom: bigint = amount, fee
   return { toPool: amount - fee, toFirstLoss, toTreasury: fee - toFirstLoss };
 }
 
-/** Tier comes from the tenant's on-chain rental history, never from the landlord. */
+/** Tier comes from rental history. */
 export const TIER_COPY: Record<RiskTier, { label: string; help: string }> = {
   A: { label: "Tier A, clean history", help: "At least one lease ended with no claim. 20% off the standard rate." },
   B: { label: "Tier B, standard rate", help: "New renters on SafeDeposit Zero pay the standard rate." },
@@ -54,7 +50,7 @@ export const TIER_COPY: Record<RiskTier, { label: string; help: string }> = {
 export const TIER_EXPLAINER =
   "Your fee depends on your rental history on SafeDeposit Zero: new renters pay the standard rate, clean history gets 20% off.";
 
-/** Dispute fee: 2% of the claimed amount, at least 10 USDG. Charged only when the arbiter approves it in full. */
+/** 2% of the claim, min 10 USDG. Full approvals only. */
 export function disputeFee(claimed: bigint): bigint {
   const fee = (claimed * 200n) / 10_000n;
   const min = 10n * UNIT;

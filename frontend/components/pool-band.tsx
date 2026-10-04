@@ -7,9 +7,7 @@ import { toNumber } from "@/lib/format";
 import { CountUp } from "./landing/motion";
 import { Skeleton } from "./ui/panel";
 
-/**
- * Full-width deep-green band (green-700) so white text passes AA at every size.
- */
+/** Pool stats band. */
 export function PoolBand() {
   const { data: s } = useDS(["pool"], () => dataSource.getPoolStats(), { refetchInterval: 5_000 });
   const whole = (v: number) => Math.round(v).toLocaleString("en-US");

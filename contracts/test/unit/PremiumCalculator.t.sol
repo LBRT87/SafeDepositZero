@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {PremiumCalculatorSol} from "../../src/PremiumCalculatorSol.sol";
 import {InvalidTier, InvalidPeriods, ParamOutOfBounds} from "../../src/libraries/Errors.sol";
 
-/// @notice The same table of cases is asserted by the Stylus crate (stylus/premium-calculator/src/lib.rs tests).
+/// @notice Same cases as the Stylus crate tests.
 contract PremiumCalculatorTest is Test {
     uint256 constant U = 1e6;
     PremiumCalculatorSol calc;
@@ -102,7 +102,7 @@ contract PremiumCalculatorTest is Test {
         uint256 exactNumerator = coverage * 900 * calc.termFactor(periods) * calc.tierMultiplier(tier);
         assertGe(annual * 1e8, exactNumerator, "annual rounds up");
         assertLt(annual * 1e8, exactNumerator + 1e8 * 10_000, "annual within one cent");
-        // Max premium: tier C at the shortest priced term → 9% × 1.1 × 1.3 = 12.87%/yr.
+        // Max: 9% × 1.1 × 1.3 = 12.87%/yr.
         assertLe(annual, coverage * 1287 / 10_000 + 10_000);
     }
 

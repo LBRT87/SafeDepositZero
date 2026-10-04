@@ -1,8 +1,7 @@
 import { keccak256, toHex } from "viem";
 import { mockCid } from "@/lib/evidence";
 
-// Pins one evidence file (a photo or the manifest JSON) to IPFS through Pinata. The JWT stays on the server.
-// Without PINATA_JWT it returns a deterministic mock CID, so mock mode and local dev work offline.
+// Pins evidence to IPFS via Pinata. Without PINATA_JWT it returns a mock CID.
 
 const MAX_BYTES = 10 * 1024 * 1024;
 

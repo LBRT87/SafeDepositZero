@@ -8,7 +8,7 @@ const mock = IS_MOCK ? new MockDataSource() : null;
 
 export const dataSource: DataSource = IS_MOCK ? mock! : new OnchainDataSource();
 
-/** Demo controls (skip time, reject next tx, reset). Null in onchain mode. */
+/** Demo controls; null onchain. */
 export const mockControls = mock;
 
 export type { DataSource } from "./source";

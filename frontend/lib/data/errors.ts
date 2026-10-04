@@ -1,4 +1,4 @@
-// Contract custom errors (contracts/src/libraries/Errors.sol) → plain, specific copy that doesn't apologize.
+// Contract errors → plain UI copy.
 
 export type ContractErrorCode =
   | "ReserveTooLow"

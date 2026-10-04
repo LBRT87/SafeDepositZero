@@ -1,10 +1,4 @@
-// OnchainDataSource — reads and writes the deployed contracts with viem. Selected with NEXT_PUBLIC_DATA_SOURCE=onchain.
-//
-//  - Reads: struct getters through multicall; history from an incremental event index starting at `deployBlock`.
-//  - Writes: simulate first (clear revert reasons before the wallet opens) → onStage("wallet") → writeContract →
-//    onStage("confirming", hash) → waitForTransactionReceipt → onStage("done", hash).
-//  - Reverts are decoded with the ABIs and mapped to ContractError, so the UI shows the same plain copy as mock mode.
-//  - Addresses: config/contracts.ts. ABIs: frontend/abi/*.json (scripts/export-abis.mjs).
+// Reads and writes the deployed contracts with viem (NEXT_PUBLIC_DATA_SOURCE=onchain).
 
 import {
   BaseError,
@@ -87,7 +81,7 @@ const ARBITER_ROLE = keccak256(toHex("ARBITER_ROLE"));
 const SHARE_UNIT = 10n ** 12n;
 const POLL_MS = 6_000;
 
-/** Which contract and setter each admin parameter maps to. */
+/** Admin parameter → contract setter. */
 export const PARAM_SETTERS: Record<ParamKey, [Key, string]> = {
   protocolFeeBps: ["pm", "setProtocolFeeBps"],
   firstLossShareBps: ["pm", "setFirstLossShareBps"],
@@ -103,7 +97,7 @@ export const PARAM_SETTERS: Record<ParamKey, [Key, string]> = {
 
 const SPENDER_KEY: Record<Spender, Key> = { policyManager: "pm", pool: "pool", claimManager: "cm" };
 
-// ───────────────────────────── raw struct shapes ─────────────────────────────
+// Raw struct shapes
 
 interface RawPolicy {
   id: bigint;
@@ -163,7 +157,7 @@ interface IndexedEvent {
 const n = (v: bigint | number) => Number(v);
 const lower = (a: string | null | undefined) => (a ?? "").toLowerCase();
 
-// ───────────────────────────── data source ─────────────────────────────
+// Data source
 
 export class OnchainDataSource implements DataSource {
   readonly kind = "onchain" as const;
@@ -186,7 +180,7 @@ export class OnchainDataSource implements DataSource {
     this.client = createPublicClient({ chain: PRIMARY_CHAIN, transport: http(READ_RPC_URL) }) as PublicClient;
   }
 
-  // ── environment ──
+  // Environment
 
   now() {
     return Math.floor(Date.now() / 1000);
@@ -212,7 +206,7 @@ export class OnchainDataSource implements DataSource {
     this.listeners.forEach((l) => l());
   }
 
-  // ── low-level helpers ──
+  // Low-level helpers
 
   private addr(key: Key): Address {
     const map: Record<Key, Address> = {
@@ -235,7 +229,7 @@ export class OnchainDataSource implements DataSource {
     return this.client.readContract({ address: this.addr(key), abi: ABI[key], functionName, args, blockNumber }) as Promise<T>;
   }
 
-  /** Batched reads: multicall when the chain has Multicall3, plain parallel reads otherwise. */
+  /** Multicall when available, else parallel reads. */
   private async many<T>(calls: { key: Key; fn: string; args?: readonly unknown[] }[]): Promise<T[]> {
     if (calls.length === 0) return [];
     if (PRIMARY_CHAIN.contracts?.multicall3) {
@@ -248,9 +242,9 @@ export class OnchainDataSource implements DataSource {
     return Promise.all(calls.map((x) => this.read<T>(x.key, x.fn, x.args ?? [])));
   }
 
-  // ── event index ──
+  // Event index
 
-  /** Fetches new events since the last call (one in flight at a time). */
+  /** Fetches new events since the last call. */
   private sync(): Promise<void> {
     if (!this.indexing) this.indexing = this.doSync().finally(() => (this.indexing = null));
     return this.indexing;
@@ -267,7 +261,7 @@ export class OnchainDataSource implements DataSource {
     this.indexedTo = latest;
   }
 
-  /** getLogs over [from, to], halving the range when the RPC refuses a large one. */
+  /** getLogs, halving the range if the RPC refuses. */
   private async logs(key: Key, from: bigint, to: bigint): Promise<IndexedEvent[]> {
     try {
       const raw = await this.client.getContractEvents({ address: this.addr(key), abi: ABI[key], fromBlock: from, toBlock: to });
@@ -303,7 +297,7 @@ export class OnchainDataSource implements DataSource {
     return this.blockTimes.get(block) ?? 0;
   }
 
-  // ── reads: environment and pool ──
+  // Reads: environment and pool
 
   async getTimeConfig(): Promise<TimeConfig> {
     if (this.timeCache) return this.timeCache;
@@ -381,7 +375,7 @@ export class OnchainDataSource implements DataSource {
     };
   }
 
-  /** SPEC §5.6 over the last 12 premium periods (or since deploy), annualized. */
+  /** Net APY over the last 12 periods, annualized. */
   private async apy(totalAssets: bigint, adapterValue: bigint) {
     await this.sync();
     const time = await this.getTimeConfig();
@@ -400,7 +394,7 @@ export class OnchainDataSource implements DataSource {
     const recoveries = sum("pool", "RepaymentReceived", "amount");
     const firstLossCovers = sum("pool", "FirstLossUsed", "covered");
     const claimsPaid = sum("pool", "ClaimPayout", "amount");
-    // T-bill yield: what the vault position is worth now, net of what the adapter put in and took out.
+    // T-bill yield: vault value minus net deposits.
     const adapter = lower(this.c.tbillAdapter);
     const flows = (ev: string) =>
       this.find("vault", ev, (a) => lower(a.account as string) === adapter).reduce((acc, e) => acc + ((e.args.amount as bigint) ?? 0n), 0n);
@@ -445,7 +439,7 @@ export class OnchainDataSource implements DataSource {
 
   async getSharePriceHistory(): Promise<SharePricePoint[]> {
     await this.sync();
-    // Price at each deposit / withdrawal = assets ÷ shares of that event; plus the live price now.
+    // Share price at each deposit or withdrawal.
     const points = this.events
       .filter((e) => e.contract === "pool" && ["Deposit", "Withdraw", "RedeemProcessed"].includes(e.eventName))
       .filter((e) => (e.args.shares as bigint) > 0n)
@@ -501,7 +495,7 @@ export class OnchainDataSource implements DataSource {
     return this.read<bigint>("pool", "maxNewCoverage", [landlord]);
   }
 
-  // ── reads: policies, claims, debts ──
+  // Reads: policies, claims, debts
 
   private async loadPolicies(): Promise<Policy[]> {
     const count = n(await this.read<bigint>("pm", "policyCount"));
@@ -669,7 +663,7 @@ export class OnchainDataSource implements DataSource {
     return out;
   }
 
-  /** Finds the CID for an on-chain hash, fetches the manifest from IPFS and points photos at the gateway. */
+  /** Loads an evidence manifest from IPFS. */
   async getEvidence(hash: Hash): Promise<EvidenceBundle | null> {
     const local = this.evidence.get(lower(hash));
     if (local) return local;
@@ -693,11 +687,11 @@ export class OnchainDataSource implements DataSource {
   }
 
   async storeEvidence(bundle: EvidenceBundle): Promise<void> {
-    // The photos and manifest are already pinned by bundleFromFiles; keep a local copy so this tab shows them at once.
+    // Local copy so this tab shows the photos at once.
     this.evidence.set(lower(bundle.hash), bundle);
   }
 
-  // ── reads: wallet and roles ──
+  // Reads: wallet and roles
 
   getUsdgBalance(account: Address) {
     return this.read<bigint>("usdg", "balanceOf", [account]);
@@ -746,12 +740,12 @@ export class OnchainDataSource implements DataSource {
     };
   }
 
-  // ───────────────────────────── writes ─────────────────────────────
+  // Writes
 
   private async write(key: Key, functionName: string, args: readonly unknown[], opts: TxOptions): Promise<TxReceipt & { receipt: TransactionReceipt }> {
     const address = this.addr(key);
     try {
-      // Simulate first so a revert reason shows up before the wallet opens.
+      // Simulate first to surface revert reasons.
       const { request } = await this.client.simulateContract({ account: opts.account, address, abi: ABI[key], functionName, args, chain: PRIMARY_CHAIN });
       opts.onStage?.("wallet");
       const wallet = getWalletClient();
@@ -887,7 +881,7 @@ export class OnchainDataSource implements DataSource {
     return this.write(contract, fn, [value], opts);
   }
 
-  /** Pauses (or resumes) both the pool and the policy manager: two transactions. */
+  /** Pauses or resumes the pool and policy manager. */
   async setPaused(paused: boolean, opts: TxOptions): Promise<TxReceipt> {
     const fn = paused ? "pause" : "unpause";
     await this.write("pool", fn, [], opts);
@@ -900,7 +894,7 @@ export class OnchainDataSource implements DataSource {
   }
 }
 
-// ───────────────────────────── mapping ─────────────────────────────
+// Mapping
 
 function toPolicy(p: RawPolicy, claimWindowEnd: bigint, claimId: bigint): Policy {
   return {
@@ -942,7 +936,7 @@ function makeError(code: ConstructorParameters<typeof ContractError>[0], message
   return new ContractError(code, message);
 }
 
-/** Turns a viem error into the ContractError the UI already knows how to explain. */
+/** Maps a viem error to a ContractError. */
 function toContractError(e: unknown): Error {
   if (e instanceof ContractError) return e;
   if (e instanceof BaseError) {

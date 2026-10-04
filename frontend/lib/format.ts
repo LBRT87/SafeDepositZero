@@ -10,7 +10,7 @@ export const CLAIM_TYPE_COPY: Record<ClaimType, string> = {
 const usd2 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const usd0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-/** bigint base units → number of USDG (display only). */
+/** Base units → USDG number (display only). */
 export function toNumber(amount: bigint): number {
   return Number(amount) / Number(UNIT);
 }
@@ -22,7 +22,7 @@ export function money(amount: bigint): string {
   return neg ? "−" + s : s;
 }
 
-/** "$2,000.00 USDG" — detail views. */
+/** "$2,000.00 USDG" */
 export function usdg(amount: bigint): string {
   return `${money(amount)} USDG`;
 }
@@ -32,12 +32,12 @@ export function moneyShort(amount: bigint): string {
   return "$" + usd0.format(Math.round(toNumber(amount)));
 }
 
-/** Plain "2,000.00" for button labels like "Approve 2,000.00 USDG". */
+/** "2,000.00" */
 export function plain(amount: bigint): string {
   return usd2.format(toNumber(amount));
 }
 
-/** Parses "1,234.56" → base units. Returns null when invalid. */
+/** "1,234.56" → base units, or null. */
 export function parseAmount(input: string): bigint | null {
   const clean = input.replace(/[,\s$]/g, "");
   if (!/^\d*(\.\d{0,6})?$/.test(clean) || clean === "" || clean === ".") return null;
@@ -71,7 +71,7 @@ export function timeDate(ts: number): string {
   return `${hh}:${mm}:${ss}, ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
-/** Countdown text: "2:05" under an hour, "3h 20m", "4d 6h". */
+/** "2:05", "3h 20m", "4d 6h". */
 export function countdown(seconds: number): string {
   if (seconds <= 0) return "0:00";
   const d = Math.floor(seconds / 86_400);
@@ -83,7 +83,7 @@ export function countdown(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/** Lease length in renter words. Demo profile adds the real-time equivalent. */
+/** Lease length, with demo real time. */
 export function term(periods: number, time: TimeConfig | undefined): string {
   const base = `${periods} month${periods === 1 ? "" : "s"}`;
   if (!time || time.profile !== "demo") return base;

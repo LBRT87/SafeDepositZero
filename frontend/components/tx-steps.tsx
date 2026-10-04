@@ -6,7 +6,7 @@ import { ExplorerLink } from "./explorer-link";
 import { stageText, type StepState, type TxFlow } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 
-/** The explicit write stepper: 1 Approve USDG (if needed) → 2 the action. */
+/** Approve → action stepper. */
 export function TxSteps({ flow, actionLabel, showApprove }: { flow: TxFlow; actionLabel: string; showApprove: boolean }) {
   const { chainName } = useSession();
   const steps: { label: string; state: StepState }[] = [];

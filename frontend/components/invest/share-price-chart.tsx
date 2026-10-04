@@ -2,7 +2,7 @@
 
 import type { SharePricePoint } from "@/lib/data/types";
 
-/** Minimal line chart of sdUSDG share price. Flat, one color, labelled ends; the dip marks a claim payout. */
+/** sdUSDG share price line. */
 export function SharePriceChart({ points }: { points: SharePricePoint[] }) {
   if (points.length < 2) return <p className="text-muted">Not enough history yet.</p>;
   const W = 640;

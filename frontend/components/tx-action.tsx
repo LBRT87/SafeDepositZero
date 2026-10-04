@@ -15,10 +15,7 @@ import { Banner } from "./ui/banner";
 import { TxSteps } from "./tx-steps";
 import { useToast } from "./ui/toast";
 
-/**
- * One write action with the explicit stepper: Approve USDG (if allowance < amount) → the action.
- * The button label says exactly what happens next; the success toast reuses the action's verb.
- */
+/** Write action with an Approve step when needed. */
 export function TxAction({
   label,
   loadingText = "Confirming…",
@@ -109,16 +106,13 @@ export function TxAction({
 const THOUSAND_USDG = 1_000_000_000n;
 const MAX_MINT = 100_000_000_000n; // MockUSDG.MAX_MINT
 
-/** Mints the shortfall rounded up to the next 1,000 USDG, within MockUSDG's per-call cap. */
+/** Shortfall rounded up to 1,000 USDG, capped. */
 function mintAmountFor(missing: bigint): bigint {
   const rounded = ((missing + THOUSAND_USDG - 1n) / THOUSAND_USDG) * THOUSAND_USDG;
   return rounded > MAX_MINT ? MAX_MINT : rounded;
 }
 
-/**
- * States the missing amount. When the deployment uses MockUSDG (mock mode, or a testnet deploy with
- * `usdgIsMock`), offers to mint the shortfall; with real USDG it links the Paxos faucet instead.
- */
+/** Shortfall notice with a mint (MockUSDG) or faucet link. */
 export function InsufficientUsdg({ missing }: { missing: bigint }) {
   const { account } = useSession();
   const toast = useToast();

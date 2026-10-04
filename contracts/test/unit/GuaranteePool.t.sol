@@ -106,7 +106,7 @@ contract GuaranteePoolTest is BaseTest {
         assertEq(usdg.balanceOf(investor), 500 * USDG);
     }
 
-    // ───────────── accounting: first-loss and pending claims ─────────────
+    // accounting: first-loss and pending claims
 
     function test_GuaranteePool_firstLossExcludedFromInvestorAssets() public {
         _deposit(investor, 5_000 * USDG);
@@ -159,7 +159,7 @@ contract GuaranteePoolTest is BaseTest {
         assertEq(pool.totalFirstLossCovered(), 1_500_000);
     }
 
-    // ───────────── concentration ─────────────
+    // concentration
 
     function test_GuaranteePool_concentrationViews() public {
         _deposit(investor, 5_000 * USDG); // 5,001
@@ -192,7 +192,7 @@ contract GuaranteePoolTest is BaseTest {
         pool.increaseCoverage(landlord, 2_000 * USDG + 2);
     }
 
-    // ───────────── withdrawal queue ─────────────
+    // withdrawal queue
 
     function test_GuaranteePool_requestRedeemEscrowsShares() public {
         uint256 shares = _deposit(investor, 2_000 * USDG);
@@ -233,7 +233,7 @@ contract GuaranteePoolTest is BaseTest {
         assertEq(pool.processQueue(10), 0, "everything above the reserve is not enough for the full request");
         assertEq(pool.queueLength(), 1);
 
-        // The lease closes with no claim → the reserve frees up → the request fills at the current price.
+        // Lease closes → reserve frees → request fills.
         vm.warp(pm.claimWindowEnd(policyId) + 1);
         pm.closeIfNoClaim(policyId);
         uint256 expected = pool.previewRedeem(shares);
@@ -268,7 +268,7 @@ contract GuaranteePoolTest is BaseTest {
         assertEq(pool.queueLength(), 1);
     }
 
-    // ───────────── roles ─────────────
+    // roles
 
     function testRevert_GuaranteePool_hooksAreRoleGated() public {
         vm.expectRevert(
@@ -300,7 +300,7 @@ contract GuaranteePoolTest is BaseTest {
         vm.stopPrank();
     }
 
-    // ───────────── liquidity and yield ─────────────
+    // liquidity and yield
 
     function test_GuaranteePool_payClaimPullsFromAdapter() public {
         _deposit(investor, 5_000 * USDG);
@@ -420,7 +420,7 @@ contract GuaranteePoolTest is BaseTest {
         assertEq(pool.freeAssets(), 1_011_250_000);
     }
 
-    /// @notice Classic donation attack: an attacker front-runs a victim deposit by donating to the pool.
+    /// @notice Donation (inflation) attack.
     function test_GuaranteePool_inflationAttackMitigated() public {
         GuaranteePool fresh = new GuaranteePool(usdg, admin);
         address attacker = makeAddr("attacker");

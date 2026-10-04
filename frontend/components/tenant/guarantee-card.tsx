@@ -45,7 +45,7 @@ export function GuaranteeCard({ policy }: { policy: Policy }) {
   });
 
   const [showPaid, setShowPaid] = useState(false);
-  // Long leases: show the last paid month and everything still to come; earlier paid months on request.
+  // Show the last paid month and what's left.
   const hiddenPaid = showPaid ? 0 : Math.max(0, policy.periodsPaid - 1);
   const visibleRows = rows.slice(hiddenPaid);
 
@@ -154,7 +154,7 @@ export function GuaranteeCard({ policy }: { policy: Policy }) {
   );
 }
 
-/** Within the check-in window the tenant can flag damage that was already there. It isn't claimable later. */
+/** Tenant's move-in notes, within the check-in window. */
 function MoveInNotes({ policy, deadline }: { policy: Policy; deadline: number }) {
   const noteId = useId();
   const [note, setNote] = useState("");

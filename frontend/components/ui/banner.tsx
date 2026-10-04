@@ -11,7 +11,7 @@ const tones: Record<Tone, { box: string; icon: ReactNode }> = {
   info: { box: "bg-ghost text-ink", icon: <Info className="size-5 text-muted" strokeWidth={1.75} /> },
 };
 
-/** Full-width in-content banner: tinted background, icon, one sentence, optional action. */
+/** In-content banner. */
 export function Banner({
   tone,
   children,

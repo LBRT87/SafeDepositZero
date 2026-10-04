@@ -1,11 +1,8 @@
 @import "tailwindcss";
 
-/* ───────────── Design tokens ─────────────
-   Graphite & emerald, taken from the logo: brushed-steel frame, emerald shield, violet circuit light.
-   Emerald is the one brand colour (actions, links, "protected", money in). Violet is rare: focus, the active tab,
-   the seal ring. Amber and red only ever mean "pending" and "error". Neutrals are cool graphite, not tinted. */
+/* Design tokens */
 @theme {
-  /* Brand: emerald, the circuit board in the logo (hue ~160). brand-700 carries white text at 6.6:1. */
+  /* Brand emerald */
   --color-brand-50: #e8f6f0;
   --color-brand-100: #cdeedf;
   --color-brand-500: #0f9468;
@@ -15,23 +12,23 @@
   --color-brand-900: #054431;
   --color-brand-950: #032c20;
 
-  /* Status green = brand green, named for meaning (protected, paid, money in). */
+  /* Status green (= brand) */
   --color-green-50: #e8f6f0;
   --color-green-500: #0f9468;
   --color-green-700: #086a4a;
   --color-green-800: #06573d;
   --color-green-900: #054431;
 
-  /* Accent: violet, the keyhole light in the logo (hue ~271). Focus ring (5.4:1 on white), active tab, seal ring. */
+  /* Accent violet: focus, active tab, seal */
   --color-accent-50: #f5edfe;
   --color-accent-500: #9333ea;
   --color-accent-700: #7e22ce;
 
-  /* Graphite: the steel frame. Hero block and dark surfaces. */
+  /* Graphite */
   --color-graphite-700: #2c3136;
   --color-graphite-800: #1f2327;
 
-  /* Pending / caution only. Never decoration. */
+  /* Pending only */
   --color-marigold-50: #fef4e2;
   --color-marigold-400: #f5a623;
   --color-marigold-600: #c77f05;
@@ -59,11 +56,11 @@
   --radius-dialog: 16px;
   --radius-cert: 4px;
 
-  /* The only two shadows in the product */
+  /* Shadows */
   --shadow-cert: 0 12px 32px -12px rgba(20, 23, 26, 0.22);
   --shadow-pop: 0 16px 40px -16px rgba(20, 23, 26, 0.3);
 
-  /* Motion: short, strong ease-out for enter and exit. Reduced motion keeps the fades, drops the movement. */
+  /* Motion */
   --ease-soft: cubic-bezier(0.23, 1, 0.32, 1);
   --animate-stamp: stamp 380ms var(--ease-soft) both;
   --animate-fade-up: fade-up 360ms var(--ease-soft) both;
@@ -157,7 +154,7 @@
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-/* ───────────── Base ───────────── */
+/* Base */
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -176,14 +173,14 @@
     outline: 2px solid var(--color-accent-500);
     outline-offset: 2px;
   }
-  /* Browser surfaces carry the palette too. */
+  /* Browser UI colors */
   html {
     accent-color: var(--color-brand-700);
     caret-color: var(--color-brand-700);
     scrollbar-color: var(--color-line-strong) transparent;
   }
   @media (prefers-reduced-motion: reduce) {
-    /* Movement goes; fades and spinners stay so state changes are still visible. */
+    /* Reduced motion: keep fades */
     :root {
       --animate-stamp: fade-in 200ms ease-out both;
       --animate-fade-up: fade-in 200ms ease-out both;
@@ -199,7 +196,7 @@
   }
 }
 
-/* ───────────── Type scale (UI brief §2.3) ───────────── */
+/* Type scale */
 @layer components {
   .t-display {
     font-family: var(--font-display);
@@ -309,8 +306,7 @@
   }
 }
 
-/* ───────────── Landing motion ─────────────
-   Visible by default; only blocks that start below the fold wait for the viewport (components/landing/motion.tsx). */
+/* Landing motion */
 @layer components {
   .reveal {
     transition:

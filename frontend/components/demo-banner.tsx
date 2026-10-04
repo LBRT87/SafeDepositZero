@@ -10,7 +10,7 @@ import { useSession } from "@/lib/session";
 import { Banner } from "./ui/banner";
 import { Button } from "./ui/button";
 
-/** "Testnet demo · 1 minute = 1 month · Yield is simulated" + mock-only demo controls. */
+/** Testnet notice + mock-only controls. */
 export function DemoBanner() {
   return (
     <div className="border-b border-line bg-paper">
@@ -82,7 +82,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 const SwitchNetworkButton = dynamic(() => import("./onchain-wallet").then((m) => m.SwitchNetworkButton), { ssr: false });
 
-/** Wrong-network banner (UI brief §6). */
+/** Wrong-network banner. */
 export function NetworkBanner() {
   const { wrongNetwork, setWrongNetwork } = useSession();
   if (!wrongNetwork) return null;

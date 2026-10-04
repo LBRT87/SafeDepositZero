@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @notice Custom errors shared by every SafeDeposit Zero contract (SPEC §7.10).
+/// @notice Shared custom errors.
 error ReserveTooLow(uint256 current, uint256 required);
 error ConcentrationTooHigh(uint256 current, uint256 limit);
 error CoverageTooHigh();
@@ -19,7 +19,7 @@ error ZeroAmount();
 error InsufficientLiquidity(uint256 available, uint256 required);
 error ParamOutOfBounds();
 
-// Additional errors beyond the SPEC list.
+// Extra errors
 error ZeroAddress();
 error InvalidPeriods();
 error PremiumNotDue();

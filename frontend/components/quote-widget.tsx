@@ -8,13 +8,7 @@ import { useTween } from "./landing/motion";
 import { AmountInput, Field, Select } from "./ui/field";
 import { Skeleton } from "./ui/panel";
 
-/**
- * Landing quote widget: reads PremiumCalculator.quote through the data source.
- *
- * The page's one authored moment: on first load the monthly fee counts down from the deposit to the fee while its
- * bar shrinks from the deposit's length to the fee's. That is the whole offer: a deposit becomes a small monthly fee.
- * After that, edits tween quickly (feedback). Reduced motion shows the result straight away.
- */
+/** Quote widget: the fee counts down from the deposit on first load. */
 export function QuoteWidget() {
   const [rent, setRent] = useState("2,000");
   const [depositMonths, setDepositMonths] = useState("1");
@@ -25,7 +19,7 @@ export function QuoteWidget() {
   const coverage = (rentAmt * BigInt(Math.round(Number(depositMonths) * 2))) / 2n;
   const { data: quote } = useDS(["quote", coverage.toString(), lease], () => dataSource.quote(coverage, Number(lease), "B"));
 
-  // First result runs the focal sequence (slow, from the deposit); later results are quick feedback.
+  // First result animates slowly; later edits are quick.
   const [settled, setSettled] = useState(false);
   const target = quote ? toNumber(quote.monthlyPremium) : null;
   const deposit = toNumber(coverage);

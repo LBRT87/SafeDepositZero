@@ -29,7 +29,7 @@ export default function InvitePage({ params }: { params: Promise<{ policyId: str
   const { data: history } = useDS(["tenantHistory", account], () => dataSource.getTenantHistory(account!), {
     enabled: !!account,
   });
-  // Open invites are priced for the wallet looking at them; accepted ones show the fee that was locked in.
+  // Open invites priced for the viewer; accepted ones show the locked fee.
   const tier = policy && policy.status !== "Invited" ? policy.tier : (history?.tier ?? "B");
   const { data: quote } = useDS(
     ["policyQuote", id, tier],

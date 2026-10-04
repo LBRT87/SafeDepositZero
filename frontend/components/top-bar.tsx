@@ -120,7 +120,7 @@ function DemoWalletButton() {
   );
 }
 
-/** Mobile: role tabs move to a bottom segmented control. */
+/** Mobile bottom role tabs. */
 export function MobileRoleNav() {
   const pathname = usePathname() ?? "/";
   const active = roleForPath(pathname);

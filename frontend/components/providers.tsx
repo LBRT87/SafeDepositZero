@@ -9,7 +9,7 @@ import { SessionProvider } from "@/lib/session";
 import { ToastProvider } from "./ui/toast";
 import { TooltipProvider } from "./ui/tooltip";
 
-// wagmi + RainbowKit only load in onchain mode, so mock mode works with no wallet and no WalletConnect id.
+// wagmi and RainbowKit load in onchain mode only.
 const OnchainProviders = dynamic(() => import("./onchain-providers"), { ssr: false });
 
 export function Providers({ children }: { children: ReactNode }) {

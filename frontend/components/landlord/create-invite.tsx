@@ -155,7 +155,7 @@ export function CreateInvite({ onCreated }: { onCreated?: (id: number) => void }
 }
 
 function InviteCreated({ id, onAnother }: { id: number; onAnother: () => void }) {
-  // Only rendered after a client-side transaction, so window is available.
+  // Client-only, so window exists.
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const [copied, setCopied] = useState(false);
   const link = `${origin}/invite/${id}`;

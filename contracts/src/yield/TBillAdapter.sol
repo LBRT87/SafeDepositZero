@@ -8,8 +8,7 @@ import {MockTBillVault} from "./MockTBillVault.sol";
 import {OnlyPool, ZeroAddress, ZeroAmount} from "../libraries/Errors.sol";
 
 /// @title TBillAdapter
-/// @notice Connects the GuaranteePool to a tokenized T-bill vault. Only the pool can move funds.
-///         For production, write a sibling adapter for BENJI / BUIDL with the same interface.
+/// @notice Pool adapter for a tokenized T-bill vault.
 contract TBillAdapter is IYieldAdapter {
     using SafeERC20 for IERC20;
 

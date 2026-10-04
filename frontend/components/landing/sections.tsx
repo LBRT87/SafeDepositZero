@@ -5,7 +5,7 @@ import { Certificate } from "../certificate";
 import { useInView } from "./motion";
 import type { Address, Policy } from "@/lib/data/types";
 
-// ───────────────────────────── How it works ─────────────────────────────
+// How it works
 
 const STEPS = [
   { title: "Your landlord sends an invite.", body: "They set the deposit they'd normally ask for." },
@@ -17,7 +17,7 @@ const STEPS = [
   },
 ];
 
-/** A true sequence, so the connecting rule draws through the steps in order as the section comes into view. */
+/** Steps with a rule drawn in order. */
 export function HowItWorks() {
   const { ref, waiting } = useInView<HTMLOListElement>(0.35);
   return (
@@ -49,7 +49,7 @@ export function HowItWorks() {
   );
 }
 
-// ───────────────────────────── What the landlord gets ─────────────────────────────
+// What the landlord gets
 
 const SAMPLE: Policy = {
   id: 1204,
@@ -83,7 +83,7 @@ const LANDLORD_POINTS = [
   { title: "A record nobody can rewrite", body: "Check-in photos, the tenant's move-in notes and every decision are pinned to IPFS and fingerprinted on-chain." },
 ];
 
-/** The product's own proof: the certificate a landlord receives. The seal stamps in when it scrolls into view. */
+/** Sample certificate; the seal stamps in on view. */
 export function LandlordGets() {
   const { ref, waiting, inView } = useInView<HTMLDivElement>(0.45);
   return (
@@ -111,9 +111,9 @@ export function LandlordGets() {
   );
 }
 
-// ───────────────────────────── Where the yield comes from ─────────────────────────────
+// Where the yield comes from
 
-/** SPEC §4.4 unit economics: 1,000 leases × $2,000, $1M pool. Illustrative. */
+/** Illustrative: 1,000 × $2,000 leases, $1M pool. */
 const YIELD_LINES = [
   { label: "Tenant fees to the pool (75%)", value: 135_000, kind: "in" as const },
   { label: "T-bill yield on capital above the liquidity target", value: 20_400, kind: "in" as const },
@@ -123,7 +123,7 @@ const YIELD_LINES = [
 const NET = YIELD_LINES.reduce((a, l) => a + l.value, 0);
 const SCALE = 135_000;
 
-/** Horizontal bars on one scale: what the pool earns, what claims cost, and what's left for investors. */
+/** Yield sources vs claims, one scale. */
 export function YieldBars() {
   const { ref, waiting } = useInView<HTMLDivElement>(0.3);
   const usd = (v: number) => `${v < 0 ? "−" : "+"}$${Math.abs(v).toLocaleString("en-US")}`;

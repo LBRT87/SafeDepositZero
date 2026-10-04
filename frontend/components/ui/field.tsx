@@ -74,7 +74,7 @@ export function Select({ className, children, ...rest }: SelectHTMLAttributes<HT
   );
 }
 
-/** Right-aligned tabular amount with a muted "USDG" suffix and an optional "Max" ghost button inside. */
+/** Amount input with USDG suffix and optional Max. */
 export function AmountInput({
   value,
   onChange,

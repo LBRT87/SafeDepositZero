@@ -4,7 +4,7 @@ import { clsx } from "clsx";
 import { useNow } from "@/lib/hooks";
 import { countdown } from "@/lib/format";
 
-/** Live countdown to `deadline` (unix seconds). Renders `passed` once the deadline is reached. */
+/** Live countdown to `deadline`. */
 export function Countdown({
   deadline,
   passed = "Deadline passed",

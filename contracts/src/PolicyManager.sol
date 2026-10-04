@@ -16,16 +16,7 @@ import {Policy, PolicyStatus, RiskTier, TimeConfig} from "./libraries/Types.sol"
 import "./libraries/Errors.sol";
 
 /// @title PolicyManager
-/// @notice Lease invites and the policy lifecycle (SPEC §6, §7.5):
-///
-///   Invited ──accept + 1st premium──► Active ──end time, all paid──► Ended ──claim filed──► Claimed ──► Closed
-///      │                                │                             └──window passes, no claim──► Closed
-///      └──landlord cancels──► Cancelled └──premium unpaid past due + grace──► Lapsed ──(claim or window)──► …
-///
-/// The tenant's tier comes from the TenantRegistry at acceptance. Every premium is split:
-///   75% to the pool · 10% to the first-loss reserve (until its cap) · 15% (25% once capped) to the treasury.
-/// A lapsed policy keeps its coverage for damage before the lapse; the landlord gets a claim window from then.
-/// Time-based transitions (`markLapsed`, `endLease`, `closeIfNoClaim`) are permissionless keeper calls.
+/// @notice Lease invites and the policy lifecycle.
 contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -44,7 +35,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
     IPremiumCalculator public calculator;
     address public treasury;
     uint256 public protocolFeeBps = 2_500;
-    uint256 public firstLossShareBps = 4_000; // share of the protocol fee sent to the first-loss reserve
+    uint256 public firstLossShareBps = 4_000; // of the protocol fee
     uint256 public maxCoveragePerPolicy;
 
     TimeConfig private _time;
@@ -116,11 +107,9 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    // ───────────────────────────── Landlord ─────────────────────────────
+    // Landlord
 
-    /// @notice Creates a lease invite. `tenant` may be zero for a shareable invite link.
-    /// @param checkInCid  IPFS CID of the landlord's check-in photo manifest.
-    /// @param checkInHash keccak256 of the manifest bytes.
+    /// @notice Creates a lease invite. Zero `tenant` = open invite.
     function createInvite(
         address tenant,
         string calldata propertyRef,
@@ -138,7 +127,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         }
         if (bytes(checkInCid).length > MAX_CID_LENGTH) revert StringTooLong();
         if (tenant == msg.sender) revert SameParty();
-        // Fail early with a clear reason; the binding checks run again at acceptance.
+        // Checked again at acceptance.
         _checkCapacity(msg.sender, coverage);
 
         policyId = ++policyCount;
@@ -159,7 +148,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         );
     }
 
-    /// @notice Withdraws an invite nobody has accepted yet.
+    /// @notice Cancels an unaccepted invite.
     function cancelInvite(uint256 policyId) external {
         Policy storage p = _policies[policyId];
         if (p.landlord != msg.sender) revert NotLandlord();
@@ -168,10 +157,9 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         emit InviteCancelled(policyId);
     }
 
-    // ───────────────────────────── Tenant ─────────────────────────────
+    // Tenant
 
-    /// @notice Accepts an invite and pays the first premium. The tier comes from the tenant's rental history.
-    /// @dev Requires a USDG allowance of `quoteFor(policyId, msg.sender)` to this contract.
+    /// @notice Accepts an invite and pays the first premium.
     function acceptInvite(uint256 policyId) external nonReentrant whenNotPaused {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Invited);
@@ -202,8 +190,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _collectPremium(policyId, monthlyPremium, 1);
     }
 
-    /// @notice The tenant adds their own move-in notes and photos within the check-in window, to flag
-    ///         damage that was already there. Pre-existing damage is not claimable.
+    /// @notice Tenant's move-in evidence, within the check-in window.
     function addCheckInEvidence(uint256 policyId, string calldata cid, bytes32 hash) external {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Active);
@@ -215,7 +202,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         emit CheckInEvidenceAdded(policyId, cid, hash);
     }
 
-    /// @notice Pays the next period's premium. Anyone may pay on the tenant's behalf; paying ahead is allowed.
+    /// @notice Pays the next premium. Anyone may pay.
     function payPremium(uint256 policyId) external nonReentrant {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Active);
@@ -228,10 +215,9 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _collectPremium(policyId, p.monthlyPremium, period);
     }
 
-    // ─────────────────────── Keeper (permissionless) ───────────────────────
+    // Keeper (permissionless)
 
-    /// @notice Lapses a policy whose premium is unpaid past due + grace. Coverage stays for damage before the
-    ///         lapse, and the landlord's claim window opens now.
+    /// @notice Lapses a policy with an overdue premium.
     function markLapsed(uint256 policyId) external {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Active);
@@ -243,7 +229,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         emit PolicyLapsed(policyId, p.lapsedAt + _time.claimWindow);
     }
 
-    /// @notice Ends a fully paid lease once its end time has passed. Opens the claim window.
+    /// @notice Ends a fully paid lease after its end time.
     function endLease(uint256 policyId) external {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Active);
@@ -252,8 +238,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _end(p);
     }
 
-    /// @notice Closes an ended or lapsed policy after its claim window passes without a claim. Releases the
-    ///         coverage. A lease that ended without a lapse counts as a clean rental for the tenant.
+    /// @notice Closes a policy whose claim window passed with no claim.
     function closeIfNoClaim(uint256 policyId) external {
         Policy storage p = _policies[policyId];
         _autoEnd(p);
@@ -264,9 +249,9 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _close(p, p.lapsedAt == 0);
     }
 
-    // ─────────────────────── ClaimManager hooks ───────────────────────
+    // ClaimManager hooks
 
-    /// @notice Moves an ended or lapsed policy into Claimed. Enforces the claim window.
+    /// @notice Marks a policy as claimed.
     function onClaimFiled(uint256 policyId) external onlyRole(CLAIM_MANAGER_ROLE) {
         Policy storage p = _policies[policyId];
         _autoEnd(p);
@@ -278,15 +263,14 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         emit PolicyClaimed(policyId);
     }
 
-    /// @notice Closes a claimed policy once its claim is paid or rejected. Releases its coverage.
-    /// @param clean True when the claim was rejected in full, so the tenant keeps a clean record.
+    /// @notice Closes a policy after its claim settles.
     function onClaimSettled(uint256 policyId, bool clean) external onlyRole(CLAIM_MANAGER_ROLE) {
         Policy storage p = _policies[policyId];
         _requireStatus(p, PolicyStatus.Claimed);
         _close(p, clean && p.lapsedAt == 0);
     }
 
-    // ───────────────────────────── Views ─────────────────────────────
+    // Views
 
     function getPolicy(uint256 policyId) external view returns (Policy memory) {
         return _policies[policyId];
@@ -296,7 +280,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         return _time;
     }
 
-    /// @notice Claim deadline: the claim window after the lease end, or after the lapse for a lapsed policy.
+    /// @notice Claim deadline, from lease end or lapse.
     function claimWindowEnd(uint256 policyId) public view returns (uint256) {
         Policy storage p = _policies[policyId];
         uint256 from = p.lapsedAt != 0 ? p.lapsedAt : p.endTime;
@@ -311,7 +295,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         return calculator.quote(coverage, totalPeriods, uint8(tier));
     }
 
-    /// @notice What `tenant` would pay per month on this invite, and whether they can accept it at all.
+    /// @notice Monthly premium and tier for `tenant` on this invite.
     function quoteFor(uint256 policyId, address tenant)
         external
         view
@@ -323,7 +307,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         (monthlyPremium,) = calculator.quote(p.coverage, p.totalPeriods, uint8(tier));
     }
 
-    /// @notice Splits a premium into (toPool, toFirstLoss, toTreasury).
+    /// @notice Splits a premium into pool, first-loss and treasury.
     function splitPremium(uint256 amount)
         public
         view
@@ -335,7 +319,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         toTreasury = fee - toFirstLoss;
     }
 
-    // ───────────────────────────── Admin ─────────────────────────────
+    // Admin
 
     function setProtocolFeeBps(uint256 bps) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (bps > MAX_PROTOCOL_FEE_BPS) revert ParamOutOfBounds();
@@ -361,14 +345,14 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         emit TreasuryUpdated(newTreasury);
     }
 
-    /// @notice Swap the pricing engine (e.g. Stylus ↔ Solidity). Existing policies keep their premium.
+    /// @notice Swaps the pricing engine.
     function setCalculator(IPremiumCalculator newCalculator) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (address(newCalculator) == address(0)) revert ZeroAddress();
         calculator = newCalculator;
         emit CalculatorUpdated(address(newCalculator));
     }
 
-    /// @notice Pauses new invites and acceptances. Premiums, claims and keeper calls keep working.
+    /// @notice Pauses invites and acceptances.
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
@@ -377,7 +361,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    // ───────────────────────────── Internal ─────────────────────────────
+    // Internal
 
     function _checkCapacity(address landlord, uint256 coverage) private view {
         uint256 required = pool.requiredReserve(pool.activeCoverage() + coverage);
@@ -399,7 +383,7 @@ contract PolicyManager is AccessControl, Pausable, ReentrancyGuard {
         pool.receivePremium(toPool, toFirstLoss);
     }
 
-    /// @dev A fully paid lease past its end time is treated as Ended even if no keeper called `endLease`.
+    /// @dev Treats a fully paid, expired lease as ended.
     function _autoEnd(Policy storage p) private {
         if (p.status == PolicyStatus.Active && block.timestamp >= p.endTime && p.periodsPaid >= p.totalPeriods) {
             _end(p);

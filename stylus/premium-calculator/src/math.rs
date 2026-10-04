@@ -1,10 +1,4 @@
-//! Pure pricing math (build spec §2.3). No storage, no host calls — unit-tested natively and mirrored
-//! exactly by `contracts/src/PremiumCalculatorSol.sol`.
-//!
-//! ```text
-//! annualPremium  = coverage × baseRateBps × termFactor × tierMultiplier / 10_000 / 100 / 100
-//! monthlyPremium = max(annualPremium / 12, minMonthlyPremium)        (both rounded up to 0.01 token)
-//! ```
+//! Pure pricing math, mirrored by PremiumCalculatorSol.
 
 use alloy_primitives::U256;
 
@@ -20,8 +14,7 @@ pub enum QuoteError {
     Overflow,
 }
 
-/// termFactor ×100: ≥ 24 periods → 95 · 12–23 → 100 · 6–11 → 110 · < 6 → 100
-/// (< 6 periods only exists in the demo profile and is priced at the standard 12-month factor.)
+/// termFactor ×100: ≥24 → 95, 12–23 → 100, 6–11 → 110, <6 → 100.
 pub fn term_factor(total_periods: u32) -> u64 {
     match total_periods {
         24.. => 95,
@@ -31,7 +24,7 @@ pub fn term_factor(total_periods: u32) -> u64 {
     }
 }
 
-/// tierMultiplier ×100: A (0) → 80 · B (1) → 100 · C (2) → 130
+/// tierMultiplier ×100: A 80, B 100, C 130.
 pub fn tier_multiplier(tier: u8) -> Result<u64, QuoteError> {
     match tier {
         0 => Ok(80),
@@ -49,9 +42,7 @@ fn ceil_div(a: U256, b: U256) -> U256 {
     }
 }
 
-/// Returns `(monthly_premium, annual_premium)` in token base units.
-///
-/// `min_monthly` is the floor (5 USDG); `rounding_unit` is 0.01 token in base units.
+/// Returns `(monthly, annual)` in base units.
 pub fn quote(
     coverage: U256,
     total_periods: u32,
@@ -96,7 +87,7 @@ mod tests {
         (m.to::<u64>(), a.to::<u64>())
     }
 
-    /// Same table as contracts/test/PremiumCalculator.t.sol — the two implementations must agree.
+    /// Same cases as the Solidity tests.
     #[test]
     fn matches_solidity_reference_table() {
         let cases: &[(u64, u32, u8, u64, u64)] = &[

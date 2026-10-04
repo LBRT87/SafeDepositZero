@@ -11,7 +11,7 @@ import {TenantRegistry} from "../../src/TenantRegistry.sol";
 import {MockGdnRewardsDistributor} from "../../src/yield/MockGdnRewardsDistributor.sol";
 import {Policy, Claim, PolicyStatus, ClaimType} from "../../src/libraries/Types.sol";
 
-/// @notice Drives random sequences of protocol actions and records ghost state for the invariants.
+/// @notice Random protocol actions with ghost state.
 contract Handler is Test {
     MockUSDG usdg;
     GuaranteePool pool;
@@ -72,7 +72,7 @@ contract Handler is Test {
         if (pool.totalAssets() < pool.requiredReserve(pool.activeCoverage())) reserveViolations++;
     }
 
-    // ───────────── investor actions ─────────────
+    // investor actions
 
     function deposit(uint256 amount) external trackPrice(false) {
         amount = bound(amount, 1e6, 50_000e6);
@@ -111,7 +111,7 @@ contract Handler is Test {
         if (filled > 0) _checkReserve(); // paid claims may leave the pool under reserve; payouts must not
     }
 
-    // ───────────── policy actions ─────────────
+    // policy actions
 
     function createAndAccept(uint256 coverage, bool sixMonths, uint256 tenantSeed) external trackPrice(false) {
         address tenant = tenants[bound(tenantSeed, 0, tenants.length - 1)];
@@ -133,7 +133,7 @@ contract Handler is Test {
         try pm.payPremium(id) {} catch {}
     }
 
-    /// Pays every remaining premium and jumps to the lease end so claims become possible.
+    /// Pays all premiums and jumps to lease end.
     function completeLease(uint256 seed) external trackPrice(false) {
         _complete(_pick(seed));
     }
@@ -171,7 +171,7 @@ contract Handler is Test {
         gdn.distributeRewards();
     }
 
-    // ───────────── claims and debt ─────────────
+    // claims and debt
 
     function fileAndSettle(uint256 seed, uint256 amount, uint256 mode) external trackPrice(true) {
         uint256 id = _pick(seed);
@@ -285,7 +285,7 @@ contract InvariantsTest is BaseTest {
         assertEq(pool.firstLossBalance(), pool.totalFirstLossFunded() - pool.totalFirstLossCovered());
     }
 
-    /// The share price only drops when a claim is filed or paid, or a default isn't fully covered.
+    /// Share price drops only on claims or uncovered defaults.
     function invariant_sharePriceOnlyDropsOnClaimsOrDefaults() public view {
         assertEq(handler.sharePriceDrops(), 0);
     }

@@ -1,11 +1,4 @@
-//! SafeDeposit Zero — `PremiumCalculator` on Arbitrum Stylus.
-//!
-//! ABI (identical to `contracts/src/interfaces/IPremiumCalculator.sol`):
-//!   function quote(uint256 coverage, uint32 totalPeriods, uint8 tier) view returns (uint256 monthlyPremium, uint256 annualPremium)
-//!   function params() view returns (uint256 baseRateBps, uint256 minMonthlyPremium, uint256 roundingUnit)
-//!
-//! Deploy (written, not executed — see README):
-//!   cargo stylus deploy --endpoint $ARBITRUM_SEPOLIA_RPC_URL --constructor-args 6
+//! SafeDeposit Zero premium calculator on Arbitrum Stylus. Same ABI as IPremiumCalculator.
 #![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
 #![cfg_attr(not(any(test, feature = "export-abi")), no_std)]
 
@@ -54,7 +47,7 @@ pub struct PremiumCalculator {
 
 #[public]
 impl PremiumCalculator {
-    /// `token_decimals` of the premium token (USDG = 6). Sets the 5-token minimum and 0.01-token rounding.
+    /// Premium token decimals (USDG = 6).
     #[constructor]
     pub fn constructor(&mut self, token_decimals: u8) -> Result<(), PremiumError> {
         if !(2..=30).contains(&token_decimals) {

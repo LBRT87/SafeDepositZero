@@ -1,19 +1,17 @@
 import { keccak256, stringToHex, toHex } from "viem";
 import type { EvidenceBundle, EvidenceFile, Hash } from "./data/types";
 
-// Evidence flow (SPEC §8.2): each photo is pinned to IPFS through /api/evidence, then a manifest
-// {files:[{name,cid,keccak256}], note, createdAt} is pinned too. The manifest's CID and keccak256 go on-chain,
-// so anyone can re-fetch the manifest and the photos and check them against the contract.
+// Photos and a manifest are pinned to IPFS; the manifest CID and hash go on-chain.
 
 export const EMPTY_HASH: Hash = "0x0000000000000000000000000000000000000000000000000000000000000000";
 export const IPFS_GATEWAY = process.env.NEXT_PUBLIC_IPFS_GATEWAY || "https://gateway.pinata.cloud/ipfs/";
 
-/** Deterministic stand-in CID used when Pinata isn't configured (mock mode, local dev). */
+/** Stand-in CID when Pinata isn't configured. */
 export function mockCid(bytesHash: Hash): string {
   return `bafkmock${bytesHash.slice(2, 50)}`;
 }
 
-/** keccak256 of the raw file bytes. */
+/** keccak256 of the file bytes. */
 export async function hashFile(file: File | Blob): Promise<Hash> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   return keccak256(toHex(bytes));
@@ -23,7 +21,7 @@ export function manifestHash(manifest: string): Hash {
   return keccak256(stringToHex(manifest));
 }
 
-/** Pins a file or the manifest. Falls back to a local mock CID if the route can't be reached. */
+/** Pins a file, or falls back to a mock CID. */
 async function pin(body: Blob, name: string, bytesHash: Hash): Promise<string> {
   try {
     const form = new FormData();
@@ -59,7 +57,7 @@ export async function bundleFromFiles(files: File[], note = ""): Promise<Evidenc
   return { hash, cid, manifest, files: entries, note };
 }
 
-/** Re-hashes the manifest and every photo, and checks both against the on-chain hash. */
+/** Checks the manifest and photos against the on-chain hash. */
 export async function verifyBundle(bundle: EvidenceBundle, onChainHash: Hash): Promise<boolean> {
   try {
     if (manifestHash(bundle.manifest) !== onChainHash.toLowerCase()) return false;

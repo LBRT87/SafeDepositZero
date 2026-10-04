@@ -8,7 +8,7 @@ import { errorMessage } from "./data/errors";
 import type { Address, Hash, Spender, TxOptions, TxReceipt, TxStage } from "./data/types";
 import { useSession } from "./session";
 
-/** React Query wrapper around a DataSource read. */
+/** React Query wrapper for a DataSource read. */
 export function useDS<T>(key: readonly unknown[], fn: () => Promise<T>, opts?: { enabled?: boolean; refetchInterval?: number }) {
   return useQuery({
     queryKey: key,
@@ -19,14 +19,14 @@ export function useDS<T>(key: readonly unknown[], fn: () => Promise<T>, opts?: {
   });
 }
 
-/** Re-fetches every query whenever the data source reports a change (mock state change / new block). */
+/** Refetches all queries on data changes. */
 export function DataSync() {
   const qc = useQueryClient();
   useEffect(() => dataSource.subscribe(() => qc.invalidateQueries()), [qc]);
   return null;
 }
 
-/** Ticking clock from the data source (mock clock includes "skip ahead"). Null until mounted (no SSR mismatch). */
+/** Ticking clock; null until mounted. */
 export function useNow(intervalMs = 1_000): number | null {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
@@ -64,10 +64,7 @@ export interface TxFlow {
   reset: () => void;
 }
 
-/**
- * Two explicit steps for every write: 1 Approve USDG (only if allowance < amount) → 2 Confirm action.
- * Each step goes wallet → confirming → done. Success toast uses the button's verb.
- */
+/** Approve (if needed) → action, with per-step status. */
 export function useTxFlow({
   approval,
   successTitle,
@@ -91,7 +88,7 @@ export function useTxFlow({
     { enabled: !!account && !!approval },
   );
   const allowance = allowanceQuery.data;
-  // The last action spent the allowance; until it is re-read, assume a new approval is needed.
+  // Allowance was spent; assume re-approval until re-read.
   const allowanceStale = allowanceQuery.dataUpdatedAt < lastSuccessAt;
 
   const needsApproval =
@@ -135,7 +132,7 @@ export function useTxFlow({
         toast.push({ tone: "success", title: successTitle, body: successBody, txHash: receipt.hash });
         if (approval) setLastSuccessAt(Date.now());
         setApproveState("idle");
-        // Show "Done" briefly, then reset so a repeat action (next month's fee) starts a fresh stepper.
+        // Reset after "Done" so the next action starts fresh.
         setTimeout(() => {
           setApproveState("idle");
           setActionState("idle");

@@ -9,16 +9,13 @@ export interface Column<T> {
   cell: (row: T) => ReactNode;
   align?: "left" | "right";
   className?: string;
-  /** Hide on the stacked mobile layout (e.g. a duplicate action column). */
+  /** Hide on mobile. */
   hideOnMobile?: boolean;
-  /** Allow text to wrap (descriptions, long labels). Other cells stay on one line. */
+  /** Allow wrapping. */
   wrap?: boolean;
 }
 
-/**
- * Primary data display. Desktop: 44px header, 56px rows, numbers right-aligned.
- * Mobile (<640px): each row becomes a stacked block of label/value pairs.
- */
+/** Data table; stacks rows on mobile. */
 export function DataTable<T>({
   columns,
   rows,

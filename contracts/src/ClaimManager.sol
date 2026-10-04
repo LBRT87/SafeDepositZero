@@ -15,17 +15,7 @@ import {Policy, Claim, ClaimStatus, ClaimType, Debt, TimeConfig} from "./librari
 import "./libraries/Errors.sol";
 
 /// @title ClaimManager
-/// @notice Move-out claims, disputes and tenant debt (SPEC §6, §7.7):
-///
-///   Filed ──tenant accepts / silence past deadline──► Accepted ──► Paid
-///   Filed ──tenant disputes──► Disputed ──arbiter──► Approved | PartiallyApproved ──► Paid
-///                                                 └► Rejected
-///
-/// Filing a claim lowers the pool's share price right away (pending claims). On Paid the pool pays the
-/// landlord and the tenant owes the pool the approved amount (+ one missed premium if the policy lapsed),
-/// plus the dispute fee when the tenant disputed and the arbiter approved the full amount. Repayments go to
-/// the pool first and the fee to the treasury last. If the tenant defaults, the first-loss reserve covers
-/// what it can and the tenant is blocked. Claims never pause.
+/// @notice Move-out claims, disputes and tenant debt.
 contract ClaimManager is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -51,7 +41,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
     mapping(uint256 => address) public assignedArbiter; // zero = any ARBITER_ROLE holder
 
     mapping(uint256 => Debt) private _debts; // by claimId
-    mapping(uint256 => uint256) public disputeFeeOf; // fee part of a debt, paid to the treasury after the pool
+    mapping(uint256 => uint256) public disputeFeeOf; // fee part, paid after the pool
     mapping(uint256 => uint64) public debtStart;
 
     event ClaimFiled(
@@ -98,11 +88,9 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         if (arbiter != address(0)) _grantRole(ARBITER_ROLE, arbiter);
     }
 
-    // ───────────────────────────── Landlord ─────────────────────────────
+    // Landlord
 
-    /// @notice Files a claim within the claim window after the lease ended or lapsed. One claim per policy.
-    /// @param evidenceCid  IPFS CID of the check-out photo manifest.
-    /// @param evidenceHash keccak256 of the manifest bytes.
+    /// @notice Files a claim within the claim window. One per policy.
     function fileClaim(
         uint256 policyId,
         ClaimType claimType,
@@ -120,7 +108,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
             revert StringTooLong();
         }
 
-        policyManager.onClaimFiled(policyId); // enforces status + window, moves the policy to Claimed
+        policyManager.onClaimFiled(policyId); // checks status and window
 
         claimId = ++claimCount;
         Claim storage c = _claims[claimId];
@@ -139,7 +127,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         pool.addPendingClaim(amount);
     }
 
-    // ───────────────────────────── Tenant ─────────────────────────────
+    // Tenant
 
     function acceptClaim(uint256 claimId) external nonReentrant {
         Claim storage c = _claims[claimId];
@@ -166,7 +154,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         emit ClaimDisputed(claimId, c.arbiterDeadline);
     }
 
-    /// @notice Repays tenant debt. Anyone may pay on the tenant's behalf. Overpayment is capped to what is owed.
+    /// @notice Repays tenant debt. Anyone may pay; overpayment is capped.
     function repay(uint256 claimId, uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
         Debt storage d = _debts[claimId];
@@ -174,7 +162,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         if (outstanding == 0) revert NothingOwed();
         if (amount > outstanding) amount = outstanding;
 
-        // The pool is made whole before the dispute fee goes to the treasury.
+        // Pool first, dispute fee last.
         uint256 poolRemaining = _poolOutstanding(claimId, d);
         uint256 toPool = Math.min(amount, poolRemaining);
         uint256 toTreasury = amount - toPool;
@@ -193,10 +181,9 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         if (closed && !d.defaulted) registry.recordDebtClosed(_tenantOf(_claims[claimId]));
     }
 
-    // ───────────────────────────── Arbiter ─────────────────────────────
+    // Arbiter
 
-    /// @notice Decides a disputed claim. 0 rejects; less than claimed is a partial approval; the full amount
-    ///         approves it and adds the dispute fee to the tenant's debt.
+    /// @notice Decides a dispute: 0 rejects, partial, or full (adds dispute fee).
     function resolveDispute(uint256 claimId, uint128 amountApproved, string calldata reason)
         external
         nonReentrant
@@ -227,9 +214,9 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         _payClaim(claimId, amountApproved, fee);
     }
 
-    // ─────────────────────── Keeper (permissionless) ───────────────────────
+    // Keeper (permissionless)
 
-    /// @notice Silence rule: if the tenant doesn't respond by the deadline, the claim is accepted.
+    /// @notice Accepts a claim the tenant didn't answer in time.
     function autoAcceptClaim(uint256 claimId) external nonReentrant {
         Claim storage c = _claims[claimId];
         _requireStatus(c, ClaimStatus.Filed);
@@ -240,8 +227,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         _payClaim(claimId, c.amountClaimed, 0);
     }
 
-    /// @notice Defaults a debt whose installment is overdue past the grace period. The first-loss reserve
-    ///         covers the pool's outstanding share up to its balance, and the tenant is blocked.
+    /// @notice Defaults an overdue debt; first-loss covers it and the tenant is blocked.
     function markDefault(uint256 claimId) external nonReentrant {
         Debt storage d = _debts[claimId];
         if (d.principal == 0 || d.repaid >= d.principal) revert NothingOwed();
@@ -260,9 +246,9 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         registry.recordDefault(tenant);
     }
 
-    // ───────────────────────────── Admin ─────────────────────────────
+    // Admin
 
-    /// @notice If the arbiter misses the decision deadline, the admin hands the case to another arbiter.
+    /// @notice Reassigns a dispute after the arbiter deadline.
     function reassignArbiter(uint256 claimId, address newArbiter) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Claim storage c = _claims[claimId];
         _requireStatus(c, ClaimStatus.Disputed);
@@ -285,7 +271,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         emit ParamsUpdated("minDisputeFee", amount);
     }
 
-    // ───────────────────────────── Views ─────────────────────────────
+    // Views
 
     function getClaim(uint256 claimId) external view returns (Claim memory) {
         return _claims[claimId];
@@ -295,7 +281,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         return _debts[claimId];
     }
 
-    /// @notice 2% of the claimed amount, at least `minDisputeFee`.
+    /// @notice 2% of the claim, at least `minDisputeFee`.
     function disputeFee(uint256 claimedAmount) public view returns (uint256) {
         uint256 fee = (claimedAmount * disputeFeeBps) / BPS;
         return fee < minDisputeFee ? minDisputeFee : fee;
@@ -307,7 +293,7 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         return Math.ceilDiv(d.principal, d.installments);
     }
 
-    // ───────────────────────────── Internal ─────────────────────────────
+    // Internal
 
     function _payClaim(uint256 claimId, uint256 amount, uint256 fee) private {
         Claim storage c = _claims[claimId];
@@ -334,13 +320,13 @@ contract ClaimManager is AccessControl, ReentrancyGuard {
         pool.payClaim(p.landlord, amount);
     }
 
-    /// @dev What the tenant still owes the pool (everything except the dispute fee).
+    /// @dev Debt owed to the pool, excluding the dispute fee.
     function _poolOutstanding(uint256 claimId, Debt storage d) private view returns (uint256) {
         uint256 poolPortion = uint256(d.principal) - disputeFeeOf[claimId];
         return poolPortion > d.repaid ? poolPortion - d.repaid : 0;
     }
 
-    /// @dev The next due date is the end of the first installment period not yet fully covered by repayments.
+    /// @dev Due date of the first unpaid installment.
     function _nextInstallmentDue(uint256 claimId, Debt storage d) private view returns (uint64) {
         if (d.repaid >= d.principal) return 0;
         uint256 per = Math.ceilDiv(d.principal, d.installments);

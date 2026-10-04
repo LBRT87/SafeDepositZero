@@ -28,7 +28,7 @@ contract ClaimManagerTest is BaseTest {
         cm.acceptClaim(claimId);
     }
 
-    // ───────────── fileClaim ─────────────
+    // fileClaim
 
     function test_ClaimManager_fileOpensResponseWindowAndLowersPrice() public {
         uint256 assetsBefore = pool.totalAssets();
@@ -122,7 +122,7 @@ contract ClaimManagerTest is BaseTest {
         _fileClaim(lapsed, 100e6);
     }
 
-    // ───────────── tenant response ─────────────
+    // tenant response
 
     function test_ClaimManager_acceptPaysLandlordAndCreatesDebt() public {
         uint256 claimId = _fileClaim(policyId, 300e6);
@@ -193,7 +193,7 @@ contract ClaimManagerTest is BaseTest {
         assertEq(c.arbiterDeadline, block.timestamp + t.arbiterWindow);
     }
 
-    // ───────────── silence rule ─────────────
+    // silence rule
 
     function testRevert_ClaimManager_autoAcceptBeforeDeadline() public {
         uint256 claimId = _fileClaim(policyId, 300e6);
@@ -213,7 +213,7 @@ contract ClaimManagerTest is BaseTest {
         assertEq(cm.getDebt(claimId).principal, 300e6);
     }
 
-    // ───────────── arbiter ─────────────
+    // arbiter
 
     function test_ClaimManager_fullApprovalAddsDisputeFee() public {
         uint256 claimId = _disputedHere(300e6);
@@ -304,7 +304,7 @@ contract ClaimManagerTest is BaseTest {
         assertEq(cm.getClaim(claimId).amountApproved, 100e6);
     }
 
-    // ───────────── debt ─────────────
+    // debt
 
     function test_ClaimManager_repayPoolFirstThenTreasury() public {
         uint256 claimId = _disputedHere(300e6);
@@ -412,7 +412,7 @@ contract ClaimManagerTest is BaseTest {
         cm.markDefault(42);
     }
 
-    // ───────────── admin ─────────────
+    // admin
 
     function test_ClaimManager_disputeFeeParams() public {
         vm.startPrank(admin);

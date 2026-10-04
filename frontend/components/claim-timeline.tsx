@@ -3,7 +3,7 @@ import { ExplorerLink } from "./explorer-link";
 import { timeDate } from "@/lib/format";
 import type { Claim } from "@/lib/data/types";
 
-/** Filed → Tenant responded → Arbiter decision → Paid, each with its tx. Upcoming steps shown muted. */
+/** Claim steps with their txs. */
 export function ClaimTimeline({ claim }: { claim: Claim }) {
   const done = claim.timeline;
   const upcoming: string[] = [];

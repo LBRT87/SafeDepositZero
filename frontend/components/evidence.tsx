@@ -10,7 +10,7 @@ import { shortAddress } from "@/lib/format";
 import type { EvidenceBundle, Hash } from "@/lib/data/types";
 import { Skeleton } from "./ui/panel";
 
-/** Photo picker: hashes each photo in the browser, pins it and a manifest to IPFS. CID + hash go on-chain. */
+/** Photo picker: hashes and pins photos + manifest. */
 export function EvidenceUpload({
   label,
   helper,
@@ -22,7 +22,7 @@ export function EvidenceUpload({
   helper?: string;
   value: EvidenceBundle | null;
   onChange: (b: EvidenceBundle | null) => void;
-  /** Written into the manifest next to the photos. */
+  /** Saved in the manifest. */
   note?: string;
 }) {
   const id = useId();
@@ -73,7 +73,7 @@ export function EvidenceUpload({
   );
 }
 
-/** Re-hashes the displayed files and compares with the on-chain hash. */
+/** Verifies files against the on-chain hash. */
 export function HashCheck({ bundle, onChainHash }: { bundle: EvidenceBundle; onChainHash: Hash }) {
   const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
@@ -144,7 +144,7 @@ export function EvidenceViewer({ title, hash, compact }: { title: string; hash: 
   );
 }
 
-/** Side-by-side check-in vs check-out evidence, plus the tenant's own move-in notes when they added any. */
+/** Check-in vs check-out evidence. */
 export function EvidenceCompare({ checkIn, checkOut, tenantNotes }: { checkIn: Hash; checkOut: Hash; tenantNotes?: Hash | null }) {
   return (
     <div className="flex flex-col gap-5">

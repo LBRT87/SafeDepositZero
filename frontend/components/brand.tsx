@@ -1,9 +1,6 @@
 import { clsx } from "clsx";
 
-/**
- * The brand arc: a thick, flat emerald quarter-curve, echoing the sweep of the logo's steel frame.
- * Used in exactly two places: the landing hero and the certificate seal.
- */
+/** Emerald quarter arc (hero and seal). */
 export function BrandArc({ className, strokeWidth = 34, draw }: { className?: string; strokeWidth?: number; draw?: boolean }) {
   return (
     <svg viewBox="0 0 200 200" aria-hidden className={clsx("block", draw && "arc-draw", className)} fill="none">
@@ -18,7 +15,7 @@ export function BrandArc({ className, strokeWidth = 34, draw }: { className?: st
   );
 }
 
-/** The SafeDeposit Zero logo (public/brand/logo-mark.png, cut out of Logo.jpg). Transparent, so it sits on any surface. */
+/** Transparent logo mark. */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <span className={clsx("inline-flex shrink-0", className)}>
@@ -39,10 +36,7 @@ export function Wordmark({ className }: { className?: string }) {
   );
 }
 
-/**
- * Certificate seal: 88px flat emerald disc, cut by the brand arc, with "Backed by the SafeDeposit Zero pool" around it
- * and a thin violet ring, the circuit light from the logo.
- */
+/** Certificate seal. */
 export function Seal({ className, stamp }: { className?: string; stamp?: boolean }) {
   return (
     <div className={clsx("relative size-[88px] shrink-0", stamp && "animate-stamp", className)}>
@@ -53,7 +47,7 @@ export function Seal({ className, stamp }: { className?: string; stamp?: boolean
         <circle cx="60" cy="60" r="56" fill="var(--color-brand-700)" />
         <circle cx="60" cy="60" r="56" fill="none" stroke="var(--color-accent-500)" strokeWidth="2" />
         <circle cx="60" cy="60" r="29" fill="none" stroke="#FFFFFF" strokeOpacity="0.55" strokeWidth="1.25" />
-        {/* The arc cutting through the seal: a white gap with an emerald sweep inside it. */}
+        {/* Arc through the seal */}
         <path d="M 14 116 A 102 102 0 0 1 116 14" stroke="#FFFFFF" strokeWidth="13" fill="none" />
         <path d="M 14 116 A 102 102 0 0 1 116 14" stroke="var(--color-brand-500)" strokeWidth="7" fill="none" />
         <text fontFamily="var(--font-hanken), sans-serif" fontSize="10" fontWeight="600" fill="#FFFFFF" letterSpacing="0.3">

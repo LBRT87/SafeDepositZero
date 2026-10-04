@@ -40,7 +40,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (t: Omit<ToastItem, "id">) => {
       const id = Date.now() + Math.random();
       setItems((xs) => [...xs.slice(-3), { ...t, id }]);
-      // Auto-dismiss after 6s; errors persist until closed.
+      // Errors stay until closed.
       if (t.tone !== "error") setTimeout(() => dismiss(id), 6_000);
     },
     [dismiss],

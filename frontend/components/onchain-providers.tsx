@@ -1,6 +1,6 @@
 "use client";
 
-// Loaded only when NEXT_PUBLIC_DATA_SOURCE=onchain. Re-themed RainbowKit (emerald accent = brand-700, radius 10px).
+// Onchain mode only: themed RainbowKit.
 import "@rainbow-me/rainbowkit/styles.css";
 import { lightTheme, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import type { ReactNode } from "react";

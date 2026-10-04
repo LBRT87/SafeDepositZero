@@ -11,7 +11,7 @@ import { contractsFor } from "@/config/contracts";
 import { explorerAddress, PRIMARY_CHAIN } from "@/config/chains";
 import type { Policy } from "@/lib/data/types";
 
-/** The guarantee certificate — a lease-style document, not a card. Centered; the seal stamps in once. */
+/** Guarantee certificate; the seal stamps in once. */
 export function Certificate({ policy, stamp, fee, sample }: { policy: Policy; stamp?: boolean; fee?: bigint; sample?: boolean }) {
   const monthly = fee ?? policy.monthlyPremium;
   const time = useTimeConfig();

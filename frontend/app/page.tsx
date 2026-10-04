@@ -104,7 +104,7 @@ export default function Landing() {
         <HowItWorks />
       </section>
 
-      {/* What the landlord gets: the certificate itself */}
+      {/* What the landlord gets */}
       <section className="page py-16 md:py-20">
         <LandlordGets />
       </section>
@@ -138,7 +138,7 @@ export default function Landing() {
         </Reveal>
       </section>
 
-      {/* For landlords / for investors: two-column text blocks */}
+      {/* Landlords and investors */}
       <section className="page grid grid-cols-1 gap-12 border-t border-line py-16 md:grid-cols-2 md:py-20">
         <div>
           <h2 className="t-h2">List with $0 deposit. Stay fully covered.</h2>

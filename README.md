@@ -184,7 +184,7 @@ cd stylus/premium-calculator && cargo test
 
 In mock mode the wallet menu switches between demo wallets: Ayu (returning tenant), Dimas (new renter, opens invite links), Harbor Co-living (landlord), Mei Lin (investor), Rahul (arbiter) and SafeDeposit operations (admin). The banner has **Skip 1 month** (1 minute = 1 month) and **Demo controls**: reject the next transaction, simulate the wrong network, reset the data.
 
-Deploying: [DEPLOY-CHECKLIST.md](DEPLOY-CHECKLIST.md) (step by step, both chains) and [INTEGRATION.md](INTEGRATION.md) (method → contract table).
+Deploying: `contracts/script/Deploy.s.sol` (options in its header). Data layer contract calls: `frontend/lib/data/onchain.ts`.
 
 ## Test results
 
@@ -197,7 +197,7 @@ flow/Flows               16     fuzz/Fuzz                 7     invariant/Invari
 Ran 10 test suites: 181 tests passed, 0 failed, 0 skipped
 ```
 
-- **Flows (SPEC §7.12):** no claim → clean record → tier A next time; claim accepted; silence → auto-accept; dispute full (+fee), partial, rejected; lapse → claim → debt including the missed fee; full repayment; default → first-loss covers → tenant blocked; concentration cap; reserve cap on activation and on withdraw; withdrawal queue (request, partial stop, cancel, FIFO); pending claim lowers the price and rejection restores it; rebalance and adapter pull on a claim; USDG rewards raise the price; plus the full §9 demo script with exact numbers.
+- **Flows:** no claim → clean record → tier A next time; claim accepted; silence → auto-accept; dispute full (+fee), partial, rejected; lapse → claim → debt including the missed fee; full repayment; default → first-loss covers → tenant blocked; concentration cap; reserve cap on activation and on withdraw; withdrawal queue (request, partial stop, cancel, FIFO); pending claim lowers the price and rejection restores it; rebalance and adapter pull on a claim; USDG rewards raise the price; plus the full demo script with exact numbers.
 - **Invariants:** the reserve holds after any activation, withdrawal or queue payout; the premium split sums exactly; `activeCoverage` equals the coverage of Active/Lapsed/Ended/Claimed policies; first-loss only shrinks through `coverDefault`; the share price only drops on a claim filing/payment or a default; approved ≤ claimed ≤ coverage; queued shares are always escrowed by the pool.
 - **Fuzz:** quote bounds, deposit/redeem round trip, withdrawals never break the reserve, claim ≤ coverage, debt matches the decision, repayment order pool-first.
 
@@ -236,9 +236,6 @@ contracts/                    Foundry: src/, test/{unit,flow,fuzz,invariant}, sc
 stylus/premium-calculator/    Optional Rust Stylus pricing engine + tests
 frontend/                     Next.js app; lib/data/{types,source,mock,onchain}.ts; app/api/evidence; config/; abi/
 scripts/export-abis.mjs       forge out/ → frontend/abi/
-docs/PROGRESS.md              build log and decisions
-KONTEKS/                      SPEC v3, UI brief, agent rules
-INTEGRATION.md · DEPLOY-CHECKLIST.md
 ```
 
 Testnet demo. Not financial advice. USDG rewards and T-bill yield are simulated on testnet.

@@ -1,5 +1,4 @@
-// Seeded evidence for the demo: plain flat "photo" placeholders generated as SVG so they can be
-// re-hashed in the browser and the "Hash verified" check is real. Uploaded files replace these in use.
+// SVG placeholder photos for demo evidence (hashable in the browser).
 
 import { keccak256, stringToHex } from "viem";
 import { buildManifest, manifestHash, mockCid } from "../evidence";
