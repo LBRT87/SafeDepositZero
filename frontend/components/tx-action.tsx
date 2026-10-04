@@ -1,7 +1,10 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { contractsFor } from "@/config/contracts";
 import { dataSource, IS_MOCK } from "@/lib/data";
+import { errorMessage } from "@/lib/data/errors";
 import { useTxFlow, useUsdgBalance } from "@/lib/hooks";
 import { plain, usdg } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -103,37 +106,66 @@ export function TxAction({
   );
 }
 
-/** States the missing amount, links the Paxos faucet, and offers a MockUSDG mint in demo mode. */
+const THOUSAND_USDG = 1_000_000_000n;
+const MAX_MINT = 100_000_000_000n; // MockUSDG.MAX_MINT
+
+/** Mints the shortfall rounded up to the next 1,000 USDG, within MockUSDG's per-call cap. */
+function mintAmountFor(missing: bigint): bigint {
+  const rounded = ((missing + THOUSAND_USDG - 1n) / THOUSAND_USDG) * THOUSAND_USDG;
+  return rounded > MAX_MINT ? MAX_MINT : rounded;
+}
+
+/**
+ * States the missing amount. When the deployment uses MockUSDG (mock mode, or a testnet deploy with
+ * `usdgIsMock`), offers to mint the shortfall; with real USDG it links the Paxos faucet instead.
+ */
 export function InsufficientUsdg({ missing }: { missing: bigint }) {
   const { account } = useSession();
   const toast = useToast();
+  const [minting, setMinting] = useState(false);
+  const canMint = IS_MOCK || contractsFor(PRIMARY_CHAIN.id).usdgIsMock;
+  const amount = mintAmountFor(missing);
   return (
     <Banner
       tone="marigold"
       action={
-        IS_MOCK && account ? (
+        canMint && account ? (
           <Button
             size="sm"
             variant="secondary"
+            loading={minting}
+            loadingText="Minting…"
             onClick={async () => {
-              await dataSource.mintTestUsdg(1_000_000_000n, { account });
-              toast.push({ tone: "success", title: "Test USDG minted", body: "1,000.00 USDG added to this demo wallet." });
+              setMinting(true);
+              try {
+                await dataSource.mintTestUsdg(amount, { account });
+                toast.push({ tone: "success", title: "Test USDG minted", body: `${usdg(amount)} added to this wallet.` });
+              } catch (e) {
+                toast.push({ tone: "error", title: "Mint didn't go through", body: errorMessage(e) });
+              } finally {
+                setMinting(false);
+              }
             }}
           >
-            Mint 1,000 test USDG
+            Mint {plain(amount)} test USDG
           </Button>
         ) : undefined
       }
     >
-      You need {usdg(missing)} more.{" "}
-      <a
-        href={PAXOS_FAUCET_URL}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 font-semibold text-brand-700 underline-offset-[3px] hover:underline decoration-2"
-      >
-        Get test USDG from the Paxos faucet <ExternalLink className="size-3.5" strokeWidth={1.75} />
-      </a>
+      You need {usdg(missing)} more.
+      {!canMint && (
+        <>
+          {" "}
+          <a
+            href={PAXOS_FAUCET_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-brand-700 underline-offset-[3px] hover:underline decoration-2"
+          >
+            Get test USDG from the Paxos faucet <ExternalLink className="size-3.5" strokeWidth={1.75} />
+          </a>
+        </>
+      )}
     </Banner>
   );
 }
