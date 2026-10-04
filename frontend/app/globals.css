@@ -273,6 +273,16 @@
     font-size: 13px;
     line-height: 18px;
   }
+  .footer-link {
+    font-size: 15px;
+    line-height: 24px;
+    color: rgb(255 255 255 / 0.7);
+    border-radius: 4px;
+    transition: color 150ms var(--ease-soft);
+  }
+  .footer-link:hover {
+    color: #fff;
+  }
   .nums,
   .t-amount-xl,
   .t-amount-l {

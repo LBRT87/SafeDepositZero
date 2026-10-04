@@ -99,7 +99,7 @@ export default function Landing() {
       </section>
 
       {/* How it works */}
-      <section className="page py-16 md:py-20">
+      <section id="how-it-works" className="page scroll-mt-20 py-16 md:py-20">
         <h2 className="t-h2">How a guarantee works</h2>
         <HowItWorks />
       </section>

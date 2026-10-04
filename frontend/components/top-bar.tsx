@@ -76,7 +76,7 @@ function DemoWalletButton() {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button className="inline-flex h-10 items-center gap-2 rounded-btn border border-line-strong bg-surface px-3 text-[15px] font-semibold text-ink transition-colors duration-150 hover:bg-hover">
+        <button className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-btn border border-line-strong bg-surface px-3 text-[15px] font-semibold text-ink transition-colors duration-150 hover:bg-hover">
           <Wallet className="size-[18px]" strokeWidth={1.75} aria-hidden />
           {account ? (
             <>
